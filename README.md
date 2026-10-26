@@ -6,20 +6,11 @@ The Android APK does not require Zalith or Pojav to be installed. It includes ve
 
 The Windows XMCL runtime includes Modrinth/CurseForge catalog and modpack workflows. The web shell in this repository is not the Windows UI and does not launch Minecraft.
 
-## Run
-
-```sh
-npm ci
-npm run dev
-```
 
 Android standalone beta APKs are built by the `Android Standalone Launcher Release` GitHub Actions workflow. It installs its own Android SDK, JDK 21, native build dependencies, and game Java runtime.
 
 The legacy Capacitor web shell can still be built locally with:
 
-```sh
-npm run android:apk
-```
 
 The Windows launcher includes private voice rooms for up to eight people. The token service is in [`voice-server/README.md`](voice-server/README.md), but this repository does not provide a hosted voice endpoint or LiveKit media server. Deploy the token service over HTTPS and connect it to a reachable LiveKit Cloud or self-hosted server before friends can join from other networks. The Android launcher and legacy web shell do not include voice rooms. Hosted chat, group invites, a premium-key store, and a public website still need their own backend; Microsoft login needs a registered OAuth application, and payments need a provider and server-side entitlement checks.
 
@@ -35,9 +26,5 @@ Windows builds accept either `CURSEFORGE_API_KEY` or `CURSEFORGE_API_TOKEN` as a
 
 The beta APK is debug-signed for direct testing/sideloading, not Google Play distribution. Debug signing is not a stable update key across fresh CI runners, so APKs may require uninstalling the prior test build before installing a new one. Pushing a `v*` tag starts an Android release build; the workflow can also be run manually with a release tag.
 
-```sh
-git tag v1.5.0-beta.3
-git push origin v1.5.0-beta.3
-```
 
 Windows uses `windows-v*` tags and publishes separately.
