@@ -39,13 +39,13 @@ jobs:
           packages: platform-tools
 
       - name: Install Android SDK packages
-        run: sdkmanager 'platforms;android-37' 'build-tools;36.0.0' 'ndk;27.3.13750724'
+        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.3.13750724'
 
       - name: Check out ZalithLauncher2 runtime
         uses: actions/checkout@v4
         with:
           repository: ZalithLauncher/ZalithLauncher2
-          ref: main
+          ref: b2aa23be7de0cc5d17845ccecc9402174ad31ee6
           path: runtime
           submodules: recursive
 
