@@ -39,34 +39,20 @@ jobs:
           packages: platform-tools
 
       - name: Install Android SDK packages
-        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.3.13750724'
+        run: sdkmanager 'platforms;android-37' 'build-tools;37.0.0' 'ndk;27.3.13750724'
 
-      - name: Check out standalone game runtime
+      - name: Check out ZalithLauncher2 runtime
         uses: actions/checkout@v4
         with:
-          repository: AngelAuraMC/Amethyst-Android
-          ref: 330c6eae3164df64bdc4828e946a9e62cc5169e4
+          repository: ZalithLauncher/ZalithLauncher2
+          ref: main
           path: runtime
+          submodules: recursive
 
-      - name: Initialize runtime submodules
-        run: |
-          git config --global url."https://github.com/".insteadOf "git@github.com:"
-          git -C runtime submodule update --init --recursive
-
-      - name: Download Android Java runtime
-        uses: dawidd6/action-download-artifact@v9
-        with:
-          workflow: build.yml
-          path: runtime/app_pojavlauncher/src/main/assets/components/jre
-          workflow_conclusion: completed
-          repo: AngelAuraMC/angelauramc-openjdk-build
-          branch: buildjre8
-          name: jre8-pojav
-
-      - name: Rebrand standalone runtime as Moon Launcher
+      - name: Rebrand Zalith runtime as Moon Launcher
         env:
           RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
-        run: node android/rebrand-amethyst.mjs runtime "$RELEASE_TAG"
+        run: node android/rebrand-zalith.mjs runtime "$RELEASE_TAG"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -77,11 +63,11 @@ jobs:
       - name: Build Moon Android launcher
         run: |
           cd runtime
-          ./scripts/languagelist_updater.sh
-          gradle :app_pojavlauncher:assembleDebug
+          chmod +x gradlew
+          gradle :ZalithLauncher:assembleDebug -Darch=arm64
           cd ..
           mkdir -p release-artifacts
-          cp runtime/app_pojavlauncher/build/outputs/apk/debug/app_pojavlauncher-debug.apk "release-artifacts/Moon-Launcher-${{ inputs.release_tag || github.ref_name }}-Android.apk"
+          cp runtime/ZalithLauncher/build/outputs/apk/debug/*arm64*.apk "release-artifacts/Moon-Launcher-${{ inputs.release_tag || github.ref_name }}-Android.apk"
 
       - name: Validate and checksum Android artifact
         run: |
@@ -98,4 +84,4 @@ jobs:
           files: |
             release-artifacts/Moon-Launcher-${{ inputs.release_tag || github.ref_name }}-Android.apk
             release-artifacts/SHA256SUMS.txt
-            runtime/app_pojavlauncher/src/main/assets/moon-third-party-notices.txt
+            android/THIRD_PARTY_NOTICES.md
