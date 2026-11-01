@@ -146,7 +146,7 @@ await replaceOnce(
 await replaceOnce(
   homeView,
   "import HomeCriticalError from './HomeCriticalError.vue'",
-  "import MoonVoiceRoom from './MoonVoiceRoom.vue\nimport moonLogo from '@/assets/moon-logo.png\nimport moonHero from '@/assets/moon-hero.webp\nimport HomeCriticalError from './HomeCriticalError.vue'"
+  "import MoonVoiceRoom from './MoonVoiceRoom.vue'\nimport moonLogo from '@/assets/moon-logo.png'\nimport moonHero from '@/assets/moon-hero.webp'\nimport HomeCriticalError from './HomeCriticalError.vue'"
 );
 await replaceOnce(
   loginForm,
