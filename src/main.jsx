@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
-import { registerPlugin } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { createRoot } from 'react-dom/client';
+import moonLogo from './assets/moon-logo.png';
+import DownloadPortal from './DownloadPortal.jsx';
+import { exportMoonDatabase, getMoonDatabase, importMoonDatabase, setMoonSetting, updateMoonDatabase } from './moonDatabase.js';
 import {
   ArrowDownToLine, ArrowLeft, ArrowUpRight, Blocks, Check, ChevronDown,
   CircleHelp, Compass, Cpu, Download, Gamepad2, HardDrive, Layers3, LoaderCircle,
@@ -26,10 +29,13 @@ const contentTypes = [
   { id: 'world', label: 'World' },
 ];
 const NoomAndroid = registerPlugin('NoomAndroid');
+const isNativePlatform = Capacitor.isNativePlatform();
+if (!isNativePlatform) document.documentElement.classList.add('download-portal');
 
 function App() {
   const [page, setPage] = useState('home');
-  const [initialVersion] = useState(() => localStorage.getItem('noom.minecraftVersion') || '');
+  const [initialDatabase] = useState(() => getMoonDatabase());
+  const [initialVersion] = useState(() => initialDatabase.minecraftVersion || '');
   const [version, setVersion] = useState(initialVersion || fallbackMinecraftVersions[0]);
   const [minecraftVersions, setMinecraftVersions] = useState(fallbackMinecraftVersions);
   const [versionsLoading, setVersionsLoading] = useState(true);
@@ -43,22 +49,15 @@ function App() {
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
   const [modsFolderConfigured, setModsFolderConfigured] = useState(false);
-  const [offlineProfiles, setOfflineProfiles] = useState(() => {
-    try {
-      const savedProfiles = JSON.parse(localStorage.getItem('noom.offlineProfiles') || '[]');
-      return Array.isArray(savedProfiles) ? savedProfiles : [];
-    } catch {
-      return [];
-    }
-  });
-  const [activeOfflineProfile, setActiveOfflineProfile] = useState(() => localStorage.getItem('noom.activeOfflineProfile') || '');
+  const [offlineProfiles, setOfflineProfiles] = useState(() => initialDatabase.profiles);
+  const [activeOfflineProfile, setActiveOfflineProfile] = useState(() => initialDatabase.activeOfflineProfile);
 
   useEffect(() => {
-    localStorage.setItem('noom.offlineProfiles', JSON.stringify(offlineProfiles));
+    updateMoonDatabase((database) => ({ ...database, profiles: offlineProfiles }));
   }, [offlineProfiles]);
 
   useEffect(() => {
-    localStorage.setItem('noom.activeOfflineProfile', activeOfflineProfile);
+    updateMoonDatabase((database) => ({ ...database, activeOfflineProfile }));
   }, [activeOfflineProfile]);
 
   useEffect(() => {
@@ -93,7 +92,9 @@ function App() {
   }, [initialVersion]);
 
   useEffect(() => {
-    if (version) localStorage.setItem('noom.minecraftVersion', version);
+    if (version) {
+      updateMoonDatabase((database) => ({ ...database, minecraftVersion: version }));
+    }
   }, [version]);
 
   useEffect(() => {
@@ -127,17 +128,8 @@ function App() {
     return () => { cancelled = true; clearTimeout(timer); };
   }, [page, query, loader, contentType]);
 
-  async function openPojav() {
-    setBusy(true);
-    setStatus('Membuka PojavLauncher...');
-    try {
-      const result = await NoomAndroid.openPojavLauncher();
-      setStatus(result.message);
-    } catch (error) {
-      setStatus(error.message);
-    } finally {
-      setBusy(false);
-    }
+  function openGame() {
+    setStatus('Shell web lama tidak menjalankan Minecraft. Gunakan APK Moon Android standalone.');
   }
 
   async function addMod(mod) {
@@ -176,15 +168,12 @@ function App() {
     }
   }
 
-  async function connectAccount(type) {
-    setStatus(`Login ${type === 'microsoft' ? 'Microsoft' : 'Ely.by'} belum tersedia langsung di Noom. Membuka PojavLauncher untuk autentikasi resmi...`);
-    try {
-      const result = await NoomAndroid.openPojavLauncher();
-      setModal(false);
-      setStatus(`${result.message} Noom tidak meminta atau menyimpan kata sandi akun online.`);
-    } catch (error) {
-      setStatus(error.message);
+  function connectAccount(type) {
+    if (type === 'elyby') {
+      setStatus('Login Ely.by belum tersedia di Moon Launcher.');
+      return;
     }
+    setStatus('Login Microsoft tersedia di APK Moon Android standalone.');
   }
 
   function createOfflineProfile(username) {
@@ -207,7 +196,7 @@ function App() {
     try {
       const result = await NoomAndroid.chooseModsFolder();
       setModsFolderConfigured(result.configured);
-      setStatus('Folder dipilih. Pastikan folder tersebut adalah folder mods Pojav yang aktif.');
+      setStatus('Folder dipilih untuk pemasangan mod. Pastikan ini folder mods game yang aktif.');
     } catch (error) {
       setStatus(error.message);
     }
@@ -216,9 +205,9 @@ function App() {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <button className="brand" onClick={() => setPage('home')} aria-label="Noom Launcher beranda">
-          <span className="brand-mark"><span /></span>
-          <span className="brand-name">noom<span>.</span></span>
+        <button className="brand" onClick={() => setPage('home')} aria-label="Moon Launcher beranda">
+          <img className="brand-mark" src={moonLogo} alt="" />
+          <span className="brand-name">moon<span>.</span></span>
         </button>
         <div className="side-caption">MAIN MENU</div>
         <nav className="nav-list" aria-label="Menu utama">
@@ -239,28 +228,28 @@ function App() {
           <button className="nav-item settings-link" onClick={() => setPage('settings')}>
             <Settings2 size={18} strokeWidth={1.8} /><span>Pengaturan</span>
           </button>
-          <div className="sidebar-version">NOOM LAUNCHER <span>v1.0.0</span></div>
+          <div className="sidebar-version">MOON LAUNCHER <span>v1.2.0</span></div>
         </div>
       </aside>
 
       <main className="main-panel">
         <header className="topbar">
-          <div className="breadcrumb"><span>NOOM</span><span className="crumb-slash">/</span><strong>{page === 'home' ? 'BERANDA' : page === 'mods' ? 'JELAJAHI MOD' : page === 'settings' ? 'PENGATURAN' : 'INSTALASI'}</strong></div>
+          <div className="breadcrumb"><span>MOON</span><span className="crumb-slash">/</span><strong>{page === 'home' ? 'BERANDA' : page === 'mods' ? 'JELAJAHI MOD' : page === 'settings' ? 'PENGATURAN' : 'INSTALASI'}</strong></div>
           <div className="top-actions">
             <button className="icon-button help-button" title="Bantuan"><CircleHelp size={17} /></button>
             <span className="top-divider" />
             <button className="profile-button" onClick={() => { setStatus(''); setModal(true); }}>
               <span className="avatar"><UserRound size={15} /></span>
-              <span className="profile-copy"><strong>{offlineProfiles.find((profile) => profile.id === activeOfflineProfile)?.name || 'Belum ada akun'}</strong><small>{activeOfflineProfile ? 'PROFIL OFFLINE NOOM' : 'PILIH PROFIL'}</small></span>
+              <span className="profile-copy"><strong>{offlineProfiles.find((profile) => profile.id === activeOfflineProfile)?.name || 'Belum ada akun'}</strong><small>{activeOfflineProfile ? 'PROFIL OFFLINE MOON' : 'PILIH PROFIL'}</small></span>
               <ChevronDown size={15} />
             </button>
           </div>
         </header>
 
-        {page === 'home' && <HomePage version={version} setVersion={setVersion} versions={minecraftVersions} versionsLoading={versionsLoading} onPlay={openPojav} busy={busy} setPage={setPage} status={status} />}
+        {page === 'home' && <HomePage version={version} setVersion={setVersion} versions={minecraftVersions} versionsLoading={versionsLoading} onPlay={openGame} busy={busy} setPage={setPage} status={status} />}
         {page === 'mods' && <ModsPage query={query} setQuery={setQuery} loader={loader} version={version} setVersion={setVersion} versions={minecraftVersions} versionsLoading={versionsLoading} contentType={contentType} setContentType={setContentType} mods={mods} loading={modsLoading} downloadingId={downloadingId} onDownload={downloadContent} status={status} />}
-        {page === 'instances' && <InstancesPage onOpenPojav={openPojav} />}
-        {page === 'settings' && <SettingsPage onChooseModsFolder={chooseModsFolder} modsFolderConfigured={modsFolderConfigured} onOpenPojav={openPojav} />}
+        {page === 'instances' && <InstancesPage onOpenGame={openGame} />}
+        {page === 'settings' && <SettingsPage onChooseModsFolder={chooseModsFolder} modsFolderConfigured={modsFolderConfigured} onOpenGame={openGame} />}
       </main>
 
       {modal && <AccountModal onClose={() => setModal(false)} onConnect={connectAccount} onCreateOffline={createOfflineProfile} profiles={offlineProfiles} activeProfile={activeOfflineProfile} onSelectProfile={setActiveOfflineProfile} status={status} />}
@@ -275,13 +264,13 @@ function HomePage({ version, setVersion, versions, versionsLoading, onPlay, busy
       <section className="hero">
         <div className="hero-image" />
         <div className="hero-content">
-          <div className="eyebrow"><span className="live-dot" /> MINECRAFT JAVA <span className="eyebrow-sep">/</span> MELALUI POJAV</div>
+          <div className="eyebrow"><span className="live-dot" /> MINECRAFT JAVA <span className="eyebrow-sep">/</span> MOON STANDALONE</div>
           <h1>Dunia baru<br /><em>menunggumu.</em></h1>
           <p>Tempat semua petualangan Minecraft-mu dimulai.</p>
           <div className="hero-controls">
             <button className="play-button" onClick={onPlay} disabled={busy}>
               {busy ? <LoaderCircle className="spin" size={19} /> : <Gamepad2 size={19} />}
-              <span>{busy ? 'MEMBUKA...' : 'BUKA POJAV'}</span>
+              <span>{busy ? 'MEMBUKA...' : 'MAIN MINECRAFT'}</span>
               <span className="play-arrow">↗</span>
             </button>
             <label className="version-select-wrap">
@@ -292,10 +281,10 @@ function HomePage({ version, setVersion, versions, versionsLoading, onPlay, busy
               <ChevronDown size={14} />
             </label>
           </div>
-          <div className="hero-footnote">LOGIN, VERSI GAME, DAN JAVA DIKELOLA DI POJAV</div>
+          <div className="hero-footnote">RUNTIME, AKUN, DAN KONTROL DI MOON</div>
         </div>
         <div className="hero-index">01 <span>/</span> 03</div>
-        <span className="hero-coordinate">NOOM WORLD · JAVA</span>
+        <span className="hero-coordinate">MOON WORLD · JAVA</span>
       </section>
 
       <div className="home-lower">
@@ -309,9 +298,9 @@ function HomePage({ version, setVersion, versions, versionsLoading, onPlay, busy
         </section>
         <section className="status-block">
           <div className="section-kicker">STATUS PELUNCUR</div>
-          <div className="status-title"><span className="status-check"><Check size={15} /></span><strong>{busy ? 'Membuka Pojav' : 'Siap membuka Pojav'}</strong></div>
+          <div className="status-title"><span className="status-check"><Check size={15} /></span><strong>{busy ? 'Menyiapkan game' : 'Launcher Moon siap'}</strong></div>
           <div className="status-divider" />
-          <div className="status-detail"><span>AKUN & GAME</span><strong>Dikelola di Pojav</strong></div>
+          <div className="status-detail"><span>AKUN & GAME</span><strong>Moon standalone</strong></div>
           <div className="status-detail"><span>TARGET MOD</span><strong>{version} <span className="version-type">FABRIC</span></strong></div>
           {status && <div className="inline-status">{status}</div>}
         </section>
@@ -351,25 +340,61 @@ function ModsPage({ query, setQuery, loader, version, setVersion, versions, vers
   );
 }
 
-function InstancesPage({ onOpenPojav }) {
+function InstancesPage({ onOpenGame }) {
   return (
     <div className="page simple-page">
-      <div className="page-title-row"><div><div className="section-kicker">PENGELOLA GAME ANDROID</div><h1>Instalasi</h1><p>Versi game dan profil Fabric dikelola di PojavLauncher.</p></div><button className="outline-action" onClick={onOpenPojav}><ArrowUpRight size={16} /> Buka Pojav</button></div>
-      <div className="instance-row"><div className="instance-cover"><Gamepad2 size={25} /></div><div className="instance-main"><strong>PojavLauncher</strong><span>Minecraft Java Edition · Akun dan versi dikelola di aplikasi eksternal</span></div><span className="installed-label"><span className="live-dot" /> ANDROID</span></div>
+      <div className="page-title-row"><div><div className="section-kicker">MINECRAFT JAVA · MOON</div><h1>Instalasi</h1><p>Versi game dan profil dikelola oleh launcher Moon.</p></div><button className="outline-action" onClick={onOpenGame}><ArrowUpRight size={16} /> Main Minecraft</button></div>
+      <div className="instance-row"><div className="instance-cover"><Gamepad2 size={25} /></div><div className="instance-main"><strong>Moon Launcher</strong><span>Minecraft Java Edition · Runtime game berada di aplikasi ini</span></div><span className="installed-label"><span className="live-dot" /> ANDROID</span></div>
       <div className="section-line" />
-      <div className="setup-note"><Blocks size={19} /><div><strong>Mod Fabric melalui Modrinth</strong><span>Pilih folder mods aktif milik Pojav di Pengaturan sebelum memasang mod.</span></div><button className="text-link" onClick={onOpenPojav}>BUKA POJAV <ArrowUpRight size={15} /></button></div>
+      <div className="setup-note"><Blocks size={19} /><div><strong>Mod melalui katalog Moon</strong><span>Gunakan profil game yang sama saat memasang mod.</span></div><button className="text-link" onClick={onOpenGame}>MAIN GAME <ArrowUpRight size={15} /></button></div>
     </div>
   );
 }
 
-function SettingsPage({ onChooseModsFolder, modsFolderConfigured, onOpenPojav }) {
+function SettingsPage({ onChooseModsFolder, modsFolderConfigured, onOpenGame }) {
+  const [settings, setSettings] = useState(() => getMoonDatabase().settings);
+  const [settingMessage, setSettingMessage] = useState('');
+
+  function changeSetting(key, value) {
+    setMoonSetting(key, value);
+    setSettings((current) => ({ ...current, [key]: value }));
+  }
+
+  function exportSettings() {
+    const blob = new Blob([exportMoonDatabase()], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'moon-launcher-settings.json';
+    link.click();
+    URL.revokeObjectURL(url);
+    setSettingMessage('Database Moon berhasil diekspor.');
+  }
+
+  async function importSettings(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      importMoonDatabase(await file.text());
+      setSettings(getMoonDatabase().settings);
+      setSettingMessage('Pengaturan berhasil diimpor. Muat ulang launcher untuk menerapkan semua data.');
+    } catch (error) {
+      setSettingMessage(error instanceof Error ? error.message : 'File database Moon tidak valid.');
+    } finally {
+      event.target.value = '';
+    }
+  }
+
   return (
     <div className="page simple-page">
-      <div className="page-title-row"><div><div className="section-kicker">INTEGRASI ANDROID</div><h1>Pengaturan</h1><p>Hubungkan folder mod Pojav dengan Noom.</p></div></div>
-      <section className="settings-section"><div className="settings-heading"><h2>Folder mod</h2><span>01</span></div><div className="setting-row"><div><strong>{modsFolderConfigured ? 'Folder mods dipilih' : 'Pilih folder mods Pojav'}</strong><span>Pilih folder `mods` aktif yang digunakan profil Fabric di Pojav.</span></div><button className="outline-action" onClick={onChooseModsFolder}><HardDrive size={15} /> {modsFolderConfigured ? 'Ganti folder' : 'Pilih folder'}</button></div></section>
-      <section className="settings-section"><div className="settings-heading"><h2>Akun dan game</h2><span>02</span></div><div className="setting-row"><div><strong>Dikelola di PojavLauncher</strong><span>Noom tidak menerima atau menyimpan token maupun password akun.</span></div><button className="outline-action" onClick={onOpenPojav}><ArrowUpRight size={15} /> Buka Pojav</button></div></section>
-      <section className="settings-section"><div className="settings-heading"><h2>Kontrol permainan</h2><span>03</span></div><div className="setting-row"><div><strong>Atur tombol di PojavLauncher</strong><span>Gunakan editor kontrol Pojav untuk memilih layout sentuh, tombol keyboard, dan pemetaan aksi.</span></div><button className="outline-action" onClick={onOpenPojav}><Gamepad2 size={15} /> Buka Pojav</button></div></section>
-      <div className="settings-foot"><ShieldCheck size={15} /> Unduhan mod berasal dari Modrinth; autentikasi dilakukan di Pojav.</div>
+      <div className="page-title-row"><div><div className="section-kicker">MOON ANDROID LAUNCHER</div><h1>Pengaturan</h1><p>Atur direktori konten, privasi, jaringan, dan tampilan Moon.</p></div></div>
+      <section className="settings-section"><div className="settings-heading"><h2>Folder mod</h2><span>01</span></div><div className="setting-row"><div><strong>{modsFolderConfigured ? 'Folder mods dipilih' : 'Pilih folder mods game'}</strong><span>Pilih folder `mods` yang digunakan profil game Moon.</span></div><button className="outline-action" onClick={onChooseModsFolder}><HardDrive size={15} /> {modsFolderConfigured ? 'Ganti folder' : 'Pilih folder'}</button></div></section>
+      <section className="settings-section"><div className="settings-heading"><h2>Tampilan dan suara</h2><span>02</span></div><div className="setting-row"><div><strong>Animasi antarmuka</strong><span>Animasi tombol, loading, dan transisi halaman.</span></div><input className="toggle" type="checkbox" checked={settings.animations !== false} onChange={(event) => changeSetting('animations', event.target.checked)} aria-label="Aktifkan animasi antarmuka" /></div><div className="setting-row"><div><strong>Suara klik</strong><span>Efek audio singkat untuk tindakan antarmuka.</span></div><input className="toggle" type="checkbox" checked={settings.clickSounds === true} onChange={(event) => changeSetting('clickSounds', event.target.checked)} aria-label="Aktifkan suara klik" /></div></section>
+      <section className="settings-section"><div className="settings-heading"><h2>Jaringan dan privasi</h2><span>03</span></div><div className="setting-row"><div><strong>Mode hemat bandwidth</strong><span>Batasi unduhan paralel dan refresh katalog.</span></div><input className="toggle" type="checkbox" checked={settings.lowBandwidth === true} onChange={(event) => changeSetting('lowBandwidth', event.target.checked)} aria-label="Aktifkan mode hemat bandwidth" /></div><div className="setting-row"><div><strong>Kirim laporan crash</strong><span>Hanya dengan persetujuan; data sensitif harus dihapus sebelum dikirim.</span></div><input className="toggle" type="checkbox" checked={settings.crashReports === true} onChange={(event) => changeSetting('crashReports', event.target.checked)} aria-label="Izinkan laporan crash" /></div></section>
+      <section className="settings-section"><div className="settings-heading"><h2>Data Moon</h2><span>04</span></div><div className="setting-row"><div><strong>Cadangkan atau pulihkan pengaturan</strong><span>Ekspor semua metadata database ke file JSON lokal.</span></div><div className="settings-actions"><button className="outline-action" onClick={exportSettings}><ArrowDownToLine size={15} /> Ekspor</button><label className="outline-action"><ArrowUpRight size={15} /> Impor<input className="visually-hidden" type="file" accept="application/json,.json" onChange={importSettings} /></label></div></div></section>
+      <section className="settings-section"><div className="settings-heading"><h2>Akun dan game</h2><span>05</span></div><div className="setting-row"><div><strong>Dikelola di Moon</strong><span>Shell web lama tidak meminta atau meneruskan password akun.</span></div><button className="outline-action" onClick={onOpenGame}><ArrowUpRight size={15} /> Status launcher</button></div></section>
+      {settingMessage && <div className="catalog-status" role="status">{settingMessage}</div>}
+      <div className="settings-foot"><ShieldCheck size={15} /> Runtime game dan kontrol tersedia di APK Android standalone.</div>
     </div>
   );
 }
@@ -388,7 +413,7 @@ function AccountModal({ onClose, onConnect, onCreateOffline, profiles, activePro
           <button className={tab === 'elyby' ? 'selected' : ''} onClick={() => setTab('elyby')}>Ely.by</button>
         </div>
         {tab === 'offline' && <div className="account-form">
-          <p>Buat profil offline langsung di Noom. Nama disimpan hanya di perangkat ini; profil offline tidak memberi akses ke server yang mewajibkan akun premium.</p>
+          <p>Buat profil offline langsung di Moon. Nama disimpan hanya di perangkat ini; profil offline tidak memberi akses ke server yang mewajibkan akun premium.</p>
           <form onSubmit={(event) => { event.preventDefault(); onCreateOffline(username); }}>
             <label htmlFor="offline-username">NAMA PROFIL</label>
             <input id="offline-username" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Contoh: PemainBaru" maxLength={16} autoComplete="off" />
@@ -396,12 +421,12 @@ function AccountModal({ onClose, onConnect, onCreateOffline, profiles, activePro
           </form>
           {profiles.length > 0 && <div className="offline-profile-list"><span className="section-kicker">PROFIL TERSIMPAN</span>{profiles.map((profile) => <button key={profile.id} className={`offline-profile ${profile.id === activeProfile ? 'selected' : ''}`} onClick={() => onSelectProfile(profile.id)}><UserRound size={15} /><span>{profile.name}</span>{profile.id === activeProfile && <Check size={15} />}</button>)}</div>}
           <div className="account-assurance"><ShieldCheck size={17} /> Profil offline tersimpan di aplikasi</div>
-          <p className="account-note">Noom versi beta belum menjalankan game sendiri. Untuk membuka Minecraft, Pojav tetap perlu dipasang dan profil offline yang sama dipilih di sana.</p>
+          <p className="account-note">Versi web shell beta belum menjalankan game sendiri. Untuk membuka Minecraft, gunakan APK Moon Android standalone.</p>
         </div>}
-        {tab === 'microsoft' && <div className="account-form"><p>Login Microsoft belum dapat dilakukan langsung di Noom. Autentikasi yang aman perlu alur OAuth resmi dan pemeriksaan kepemilikan Minecraft Java Edition.</p><div className="account-assurance"><ShieldCheck size={17} /> Akun harus memiliki Minecraft Java Edition</div><button className="modal-submit" onClick={() => onConnect('microsoft')}>LANJUTKAN DI POJAV <ArrowUpRight size={16} /></button></div>}
-        {tab === 'elyby' && <div className="account-form"><p>Gunakan email atau nama pengguna dan kata sandi yang sudah terdaftar di Ely.by hanya pada login resmi Ely.by. Login Ely.by langsung di Noom belum tersedia.</p><div className="account-assurance warning"><ShieldCheck size={17} /> Jangan masukkan kata sandi di Noom</div><button className="modal-submit" onClick={() => onConnect('elyby')}>LANJUTKAN DI POJAV <ArrowUpRight size={16} /></button></div>}
+        {tab === 'microsoft' && <div className="account-form"><p>Login Microsoft belum dapat dilakukan langsung di Moon web shell. Autentikasi yang aman perlu alur OAuth resmi dan pemeriksaan kepemilikan Minecraft Java Edition.</p><div className="account-assurance"><ShieldCheck size={17} /> Akun harus memiliki Minecraft Java Edition</div><button className="modal-submit" onClick={() => onConnect('microsoft')}>LANJUTKAN DI LAUNCHER ANDROID <ArrowUpRight size={16} /></button></div>}
+        {tab === 'elyby' && <div className="account-form"><p>Login Ely.by belum didukung di Moon Launcher. Jangan masukkan kata sandi akun Ely.by di sini.</p><div className="account-assurance warning"><ShieldCheck size={17} /> Login Ely.by belum tersedia</div><button className="modal-submit" onClick={() => onConnect('elyby')}>INFO LOGIN ELY.BY <ShieldCheck size={16} /></button></div>}
         {status && <div className="modal-status">{status}</div>}
-        <div className="modal-foot">Akun online tidak pernah disimpan oleh Noom.</div>
+        <div className="modal-foot">Akun online tidak pernah disimpan oleh Moon web shell.</div>
       </section>
     </div>
   );
@@ -409,4 +434,6 @@ function AccountModal({ onClose, onConnect, onCreateOffline, profiles, activePro
 
 export default App;
 
-createRoot(document.getElementById('root')).render(<App />);
+createRoot(document.getElementById('root')).render(
+  isNativePlatform ? <App /> : <DownloadPortal />,
+);

@@ -39,14 +39,6 @@ async function rebrandTextFiles(directory) {
 const electronApp = path.join(xmclRoot, 'xmcl-electron-app');
 const renderer = path.join(xmclRoot, 'xmcl-keystone-ui');
 const builderConfig = path.join(electronApp, 'build/electron-builder.config.ts');
-const uiPackagePath = path.join(renderer, 'package.json');
-const uiPackage = JSON.parse(await readFile(uiPackagePath, 'utf8'));
-uiPackage.dependencies['livekit-client'] = '2.22.3';
-await writeFile(uiPackagePath, `${JSON.stringify(uiPackage, null, 4)}\n`);
-await copyFile(
-  path.join(projectRoot, 'windows/MoonVoiceRoom.vue'),
-  path.join(renderer, 'src/views/MoonVoiceRoom.vue'),
-);
 await replaceOnce(builderConfig, "productName: 'XMCL',", "productName: 'Moon Launcher',");
 await replaceOnce(builderConfig, "appId: 'xmcl',", "appId: 'id.noom.launcher.windows',");
 await replaceOnce(builderConfig, "name: 'XMCL',", "name: 'Moon Launcher',");
@@ -137,24 +129,6 @@ const homeView = path.join(renderer, 'src/views/Home.vue');
 const sidebarView = path.join(renderer, 'src/views/AppSideBarClassic.vue');
 const vuetifyConfig = path.join(renderer, 'src/vuetify.ts');
 const searchModel = path.join(renderer, 'src/composables/search.ts');
-const marketFilterPanel = path.join(renderer, 'src/components/MarketFilterPanel.vue');
-if (releaseTag.startsWith('windows-v')) {
-  await replaceOnce(
-    searchModel,
-    "const isCurseforgeActive = useLocalStorage('marketCurseforgeActive', true, { writeDefaults: false })",
-    "const isCurseforgeActive = useLocalStorage('marketCurseforgeActive', false, { writeDefaults: false })",
-  );
-  await replaceOnce(
-    searchModel,
-    "useQueryOverride('curseforgeActive', isCurseforgeActive, isCurseforgeActive, searlizers.boolean)",
-    "useQueryOverride('curseforgeActive', isCurseforgeActive, isCurseforgeActive, searlizers.boolean)\n    isCurseforgeActive.value = false",
-  );
-  await replaceOnce(
-    marketFilterPanel,
-    '<div v-if="curseforgeCategoryFilter" class="filter-category-column">',
-    '<div v-if="false" class="filter-category-column">',
-  );
-}
 await replaceOnce(
   vuetifyConfig,
   "primary: '#4caf50',\n          accent: '#00e676',",
@@ -163,7 +137,7 @@ await replaceOnce(
 await replaceOnce(
   homeView,
   "import HomeCriticalError from './HomeCriticalError.vue'",
-  "import MoonVoiceRoom from './MoonVoiceRoom.vue'\nimport moonLogo from '@/assets/moon-logo.png'\nimport moonHero from '@/assets/moon-hero.webp'\nimport HomeCriticalError from './HomeCriticalError.vue'",
+  "import moonLogo from '@/assets/moon-logo.png'\nimport moonHero from '@/assets/moon-hero.webp'\nimport HomeCriticalError from './HomeCriticalError.vue'",
 );
 await replaceOnce(
   loginForm,
@@ -302,9 +276,6 @@ await replaceOnce(
                 </v-btn>
               </div>
             </div>
-          </section>
-          <section class="mx-3 mb-6" data-testid="moon-voice-room">
-            <MoonVoiceRoom />
           </section>
           <HomeGrid />`,
 );

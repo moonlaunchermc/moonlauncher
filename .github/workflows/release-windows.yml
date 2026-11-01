@@ -7,7 +7,7 @@ on:
         description: Windows release tag
         required: true
         type: string
-        default: windows-v2.1.1
+        default: windows-v2.1.2-beta.1
   push:
     tags:
       - 'windows-v*'
@@ -61,13 +61,18 @@ jobs:
           RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
         run: node windows/rebrand-xmcl.mjs "$env:XMCL_SOURCE" "$env:RELEASE_TAG"
 
-      - name: Install Moon voice room dependency
+      - name: Verify CurseForge API secret
         shell: pwsh
+        env:
+          CURSEFORGE_API_KEY: ${{ secrets.api_key_curseforge || secrets.CURSEFORGE_API_KEY || secrets.CURSEFORGE_API_TOKEN }}
         run: |
-          Set-Location $env:XMCL_SOURCE
-          pnpm install --no-frozen-lockfile
+          if ([string]::IsNullOrWhiteSpace($env:CURSEFORGE_API_KEY)) {
+            throw 'Set api_key_curseforge in repository Actions secrets before catalog release.'
+          }
 
       - name: Build Windows installer
+        env:
+          CURSEFORGE_API_KEY: ${{ secrets.api_key_curseforge || secrets.CURSEFORGE_API_KEY || secrets.CURSEFORGE_API_TOKEN }}
         shell: pwsh
         run: |
           Set-Location $env:XMCL_SOURCE
@@ -120,6 +125,15 @@ jobs:
           } finally {
             Remove-Item $certificatePath -Force -ErrorAction SilentlyContinue
           }
+
+      - name: Validate and checksum Windows installer
+        shell: pwsh
+        run: |
+          node scripts/validate-release.mjs windows '${{ inputs.release_tag || github.ref_name }}' windows/dist
+          $artifact = Get-ChildItem windows/dist -Filter '*.exe'
+          Get-FileHash -Algorithm SHA256 $artifact.FullName |
+            ForEach-Object { '{0}  {1}' -f $_.Hash.ToLowerInvariant(), $_.Path.Replace((Resolve-Path windows/dist).Path + [IO.Path]::DirectorySeparatorChar, '') } |
+            Set-Content windows/dist/SHA256SUMS.txt
 
       - name: Upload Windows installer artifact
         uses: actions/upload-artifact@v4

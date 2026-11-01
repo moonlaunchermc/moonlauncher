@@ -1,12 +1,13 @@
 {
-  "name": "noom-launcher",
-  "version": "1.5.0-beta",
-  "description": "Noom Launcher for Minecraft Java Edition",
+  "name": "moon-launcher",
+  "version": "2.1.2-beta.1",
+  "description": "Moon Launcher for Minecraft Java Edition",
   "author": "himamsuper-cpu",
   "license": "MIT",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
+    "release:validate": "node scripts/validate-release.mjs",
     "android:sync": "npm run build && cap sync android",
     "android:apk": "npm run android:sync && cd android && ./gradlew assembleDebug"
   },
