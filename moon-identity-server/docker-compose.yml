@@ -1,0 +1,16 @@
+services:
+  moon-identity:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8790:8790"
+    environment:
+      PORT: 8790
+      MOON_DEVELOPER_KEY_SHA256: ${MOON_DEVELOPER_KEY_SHA256:?Set the SHA-256 key secret}
+      MOON_DATA_FILE: /data/moon-identities.json
+      MOON_ALLOWED_ORIGIN: ${MOON_ALLOWED_ORIGIN:-https://api.alwination.id}
+    volumes:
+      - moon-identity-data:/data
+
+volumes:
+  moon-identity-data:

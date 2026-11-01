@@ -1,0 +1,11 @@
+{
+  "name": "moon-identity-server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.js"
+  },
+  "engines": {
+    "node": ">=22.10"
+  }
+}

@@ -117,6 +117,18 @@ const appPackagePath = path.join(electronApp, 'package.json');
 const uiPackagePath = path.join(renderer, 'package.json');
 const uiPackage = JSON.parse(await readFile(uiPackagePath, 'utf8'));
 await writeFile(uiPackagePath, `${JSON.stringify(uiPackage, null, 4)}\n`);
+await copyFile(path.join(projectRoot, 'windows/MoonDeveloperPanel.vue'), path.join(renderer, 'src/views/MoonDeveloperPanel.vue'));
+const rendererRouter = path.join(renderer, 'src/windows/main/router.ts');
+const routerSource = await readFile(rendererRouter, 'utf8');
+await writeFile(
+  rendererRouter,
+  routerSource
+    .replace("import Store from '@/views/Store.vue'", "import Store from '@/views/Store.vue'\nimport MoonDeveloperPanel from '@/views/MoonDeveloperPanel.vue'")
+    .replace(
+      '      children: [\n        {\n          path: \'\',',
+      '      children: [\n        { path: \'moon-developer\', component: MoonDeveloperPanel },\n        {\n          path: \'\',',
+    ),
+);
 const appPackage = JSON.parse(await readFile(appPackagePath, 'utf8'));
 appPackage.version = appVersion;
 await writeFile(appPackagePath, `${JSON.stringify(appPackage, null, 4)}\n`);
@@ -459,6 +471,7 @@ const marketShortcuts = computed(() => [
   { id: 'resourcepacks', label: t('modrinth.projectType.resourcepack'), icon: 'palette', to: { path: '/resourcepacks', query: { source: 'remote' } } },
   { id: 'shaders', label: t('modrinth.projectType.shader'), icon: 'flare', to: { path: '/shaderpacks', query: { source: 'remote' } } },
   { id: 'datapacks', label: t('modrinth.projectType.datapack'), icon: 'data_object', to: { path: '/save', query: { source: 'remote', modrinthCategories: 'datapack' } } },
+  { id: 'developer', label: 'Developer Panel', icon: 'admin_panel_settings', to: '/moon-developer' },
 ])`,
 );
 await replaceOnce(

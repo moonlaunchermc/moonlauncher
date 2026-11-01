@@ -3,6 +3,7 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
 import { createRoot } from 'react-dom/client';
 import moonLogo from './assets/moon-logo.png';
 import DownloadPortal from './DownloadPortal.jsx';
+import MoonDeveloperPanel from './MoonDeveloperPanel.jsx';
 import { exportMoonDatabase, getMoonDatabase, importMoonDatabase, setMoonSetting, updateMoonDatabase } from './moonDatabase.js';
 import {
   ArrowDownToLine, ArrowLeft, ArrowUpRight, Blocks, Check, ChevronDown,
@@ -16,6 +17,7 @@ const pages = [
   { id: 'home', label: 'Beranda', icon: Gamepad2 },
   { id: 'mods', label: 'Jelajahi mod', icon: Compass },
   { id: 'instances', label: 'Instalasi', icon: Layers3 },
+  { id: 'developer', label: 'Developer Panel', icon: ShieldCheck },
 ];
 
 const fallbackMinecraftVersions = ['1.21.4', '1.21.1', '1.20.1', '1.19.4'];
@@ -234,7 +236,7 @@ function App() {
 
       <main className="main-panel">
         <header className="topbar">
-          <div className="breadcrumb"><span>MOON</span><span className="crumb-slash">/</span><strong>{page === 'home' ? 'BERANDA' : page === 'mods' ? 'JELAJAHI MOD' : page === 'settings' ? 'PENGATURAN' : 'INSTALASI'}</strong></div>
+          <div className="breadcrumb"><span>MOON</span><span className="crumb-slash">/</span><strong>{page === 'home' ? 'BERANDA' : page === 'mods' ? 'JELAJAHI MOD' : page === 'settings' ? 'PENGATURAN' : page === 'developer' ? 'DEVELOPER PANEL' : 'INSTALASI'}</strong></div>
           <div className="top-actions">
             <button className="icon-button help-button" title="Bantuan"><CircleHelp size={17} /></button>
             <span className="top-divider" />
@@ -250,6 +252,7 @@ function App() {
         {page === 'mods' && <ModsPage query={query} setQuery={setQuery} loader={loader} version={version} setVersion={setVersion} versions={minecraftVersions} versionsLoading={versionsLoading} contentType={contentType} setContentType={setContentType} mods={mods} loading={modsLoading} downloadingId={downloadingId} onDownload={downloadContent} status={status} />}
         {page === 'instances' && <InstancesPage onOpenGame={openGame} />}
         {page === 'settings' && <SettingsPage onChooseModsFolder={chooseModsFolder} modsFolderConfigured={modsFolderConfigured} onOpenGame={openGame} />}
+        {page === 'developer' && <MoonDeveloperPanel />}
       </main>
 
       {modal && <AccountModal onClose={() => setModal(false)} onConnect={connectAccount} onCreateOffline={createOfflineProfile} profiles={offlineProfiles} activeProfile={activeOfflineProfile} onSelectProfile={setActiveOfflineProfile} status={status} />}
