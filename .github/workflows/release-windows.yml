@@ -61,6 +61,23 @@ jobs:
           RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
         run: node windows/rebrand-xmcl.mjs "$env:XMCL_SOURCE" "$env:RELEASE_TAG"
 
+      - name: Verify CurseForge API connection
+        shell: pwsh
+        env:
+          CURSEFORGE_API_KEY: ${{ secrets.api_key_curseforge || secrets.CURSEFORGE_API_KEY || secrets.CURSEFORGE_API_TOKEN }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:CURSEFORGE_API_KEY)) {
+            Write-Warning 'CurseForge secret is not configured; Modrinth-only fallback will be used.'
+          } else {
+            $headers = @{ 'x-api-key' = $env:CURSEFORGE_API_KEY; Accept = 'application/json' }
+            try {
+              Invoke-RestMethod -Uri 'https://api.curseforge.com/v1/categories?gameId=432' -Headers $headers -TimeoutSec 30 | Out-Null
+              Write-Host 'CurseForge API key verified.'
+            } catch {
+              throw "CurseForge API verification failed (HTTP $($_.Exception.Response.StatusCode.value__))"
+            }
+          }
+
       - name: Build Windows installer
         env:
           CURSEFORGE_API_KEY: ${{ secrets.api_key_curseforge || secrets.CURSEFORGE_API_KEY || secrets.CURSEFORGE_API_TOKEN }}
