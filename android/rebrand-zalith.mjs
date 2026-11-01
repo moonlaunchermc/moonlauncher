@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { generateMoonAssets } from '../scripts/generate-moon-assets.mjs';
 
@@ -24,24 +24,7 @@ properties = properties
   .replace(/^launcher_version_name=.*$/m, `launcher_version_name=${appVersion}`);
 await writeFile(propertiesFile, properties);
 
-async function replaceInTextFiles(directory) {
-  for (const entry of await readdir(directory, { withFileTypes: true })) {
-    const file = path.join(directory, entry.name);
-    if (entry.isDirectory()) {
-      await replaceInTextFiles(file);
-    } else if (/\.(xml|json|kt|java|kts|properties)$/.test(entry.name)) {
-      const source = await readFile(file, 'utf8');
-      const branded = source
-        .replaceAll('Zalith Launcher', 'Moon Launcher')
-        .replaceAll('ZalithLauncher', 'Moon Launcher')
-        .replaceAll('Zalith', 'Moon');
-      if (branded !== source) await writeFile(file, branded);
-    }
-  }
-}
-
 const androidRes = path.join(runtimeRoot, 'ZalithLauncher/src/main/res');
-await replaceInTextFiles(androidRes);
 
 const moonAssets = path.join(runtimeRoot, '.moon-assets');
 await generateMoonAssets(moonAssets);
