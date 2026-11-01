@@ -11,6 +11,8 @@ on:
   push:
     tags:
       - 'windows-v*'
+  schedule:
+    - cron: '0 0 1 12 *'
 
 permissions:
   contents: write
@@ -35,7 +37,7 @@ jobs:
       - name: Resolve release version
         shell: pwsh
         env:
-          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
+          RELEASE_TAG: ${{ github.event_name == 'schedule' && 'windows-v3.2.0' || inputs.release_tag || github.ref_name }}
         run: |
           $version = $env:RELEASE_TAG -replace '^windows-v', ''
           $isPrerelease = $version -match '-beta\.\d+$'
@@ -58,7 +60,7 @@ jobs:
 
       - name: Apply Moon branding and license notices
         env:
-          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
+          RELEASE_TAG: ${{ github.event_name == 'schedule' && 'windows-v3.2.0' || inputs.release_tag || github.ref_name }}
         run: node windows/rebrand-xmcl.mjs "$env:XMCL_SOURCE" "$env:RELEASE_TAG"
 
       - name: Verify CurseForge API connection
@@ -94,7 +96,7 @@ jobs:
           Copy-Item 'xmcl-electron-app/build/Moon-Third-Party-Notices.txt' $destination
 
       - name: Sign and verify Windows installer
-        if: ${{ !contains(inputs.release_tag || github.ref_name, '-beta.') }}
+        if: ${{ !contains(github.event_name == 'schedule' && 'windows-v3.2.0' || inputs.release_tag || github.ref_name, '-beta.') }}
         shell: pwsh
         env:
           WINDOWS_SIGNING_CERT_BASE64: ${{ secrets.WINDOWS_SIGNING_CERT_BASE64 }}
@@ -122,15 +124,15 @@ jobs:
             if (-not $signTool) { throw 'Windows SDK signtool.exe was not found.' }
 
             $installers = @(Get-ChildItem -Path 'windows/dist' -Filter '*.exe' | Sort-Object Name)
-            if ($installers.Count -ne 1) { throw "Expected one x64 installer, found $($installers.Count)." }
-            $installer = $installers | Where-Object { $_.Name -match '-x64\.exe$' }
-            if (-not $installer) { throw 'Missing x64 installer.' }
-
-            & $signTool.FullName sign /fd SHA256 /td SHA256 /tr 'http://timestamp.digicert.com' /f $certificatePath /p $env:WINDOWS_SIGNING_CERT_PASSWORD /d 'Moon Launcher x64' $installer.FullName
-            if ($LASTEXITCODE -ne 0) { throw 'Authenticode signing failed for x64.' }
-
-            & $signTool.FullName verify /pa /all /v $installer.FullName
-            if ($LASTEXITCODE -ne 0) { throw 'Authenticode verification failed for x64; release was stopped.' }
+            if ($installers.Count -ne 2) { throw "Expected x64 and x86 installers, found $($installers.Count)." }
+            foreach ($arch in @('x64', 'ia32')) {
+              $installer = $installers | Where-Object { $_.Name -match "-$arch\.exe$" }
+              if (-not $installer) { throw "Missing $arch installer." }
+              & $signTool.FullName sign /fd SHA256 /td SHA256 /tr 'http://timestamp.digicert.com' /f $certificatePath /p $env:WINDOWS_SIGNING_CERT_PASSWORD /d "Moon Launcher $arch" $installer.FullName
+              if ($LASTEXITCODE -ne 0) { throw "Authenticode signing failed for $arch." }
+              & $signTool.FullName verify /pa /all /v $installer.FullName
+              if ($LASTEXITCODE -ne 0) { throw "Authenticode verification failed for $arch; release was stopped." }
+            }
           } finally {
             Remove-Item $certificatePath -Force -ErrorAction SilentlyContinue
           }
@@ -138,7 +140,7 @@ jobs:
       - name: Validate and checksum Windows installer
         shell: pwsh
         run: |
-          node scripts/validate-release.mjs windows '${{ inputs.release_tag || github.ref_name }}' windows/dist
+          node scripts/validate-release.mjs windows '${{ github.event_name == 'schedule' && 'windows-v3.2.0' || inputs.release_tag || github.ref_name }}' windows/dist
           $artifact = Get-ChildItem windows/dist -Filter '*.exe'
           Get-FileHash -Algorithm SHA256 $artifact.FullName |
             ForEach-Object { '{0}  {1}' -f $_.Hash.ToLowerInvariant(), $_.Path.Replace((Resolve-Path windows/dist).Path + [IO.Path]::DirectorySeparatorChar, '') } |
@@ -155,7 +157,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.release_tag || github.ref_name }}
+          tag_name: ${{ github.event_name == 'schedule' && 'windows-v3.2.0' || inputs.release_tag || github.ref_name }}
           target_commitish: ${{ github.sha }}
           name: Moon Launcher v${{ env.RELEASE_VERSION }}
           prerelease: ${{ env.IS_PRERELEASE == 'true' }}

@@ -96,7 +96,7 @@ await replaceOnce(builderConfig, `target: [
       'appx',
     ],`, `target: [{
       target: 'nsis',
-        arch: ['x64'],
+        arch: ['x64', 'ia32'],
     }],`);
 await replaceOnce(builderConfig, `  linux: {
     executableName: 'xmcl',
@@ -129,7 +129,7 @@ await replaceOnce(builderConfig, `  linux: {
     category: 'Game',
     icon: 'icons/moon-256.png',
     artifactName: 'MoonLauncher-v\${version}-\${arch}.\${ext}',
-    target: [{ target: 'AppImage', arch: ['x64'] }],
+    target: [{ target: 'AppImage', arch: ['x64', 'ia32'] }],
   },`);
 
 const appPackagePath = path.join(electronApp, 'package.json');

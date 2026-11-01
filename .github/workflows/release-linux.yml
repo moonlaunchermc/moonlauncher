@@ -11,6 +11,8 @@ on:
   push:
     tags:
       - 'linux-v*'
+  schedule:
+    - cron: '0 0 1 12 *'
 
 permissions:
   contents: write
@@ -34,7 +36,7 @@ jobs:
 
       - name: Resolve release version
         env:
-          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
+          RELEASE_TAG: ${{ github.event_name == 'schedule' && 'linux-v3.2.0' || inputs.release_tag || github.ref_name }}
         run: |
           version="${RELEASE_TAG#linux-v}"
           if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$ ]]; then
@@ -60,7 +62,7 @@ jobs:
 
       - name: Apply Moon branding and license notices
         env:
-          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
+          RELEASE_TAG: ${{ github.event_name == 'schedule' && 'linux-v3.2.0' || inputs.release_tag || github.ref_name }}
         run: node windows/rebrand-xmcl.mjs "$XMCL_SOURCE" "$RELEASE_TAG"
 
       - name: Verify CurseForge API key
@@ -81,18 +83,24 @@ jobs:
           BUILD_TARGET=linux pnpm run build
           destination="$GITHUB_WORKSPACE/linux/dist"
           mkdir -p "$destination"
-          mapfile -t installers < <(find xmcl-electron-app/build/output -maxdepth 1 -type f -name "MoonLauncher-v${RELEASE_VERSION}-x86_64.AppImage")
-          if [[ "${#installers[@]}" -ne 1 ]]; then
-            echo "Expected one Moon x86_64 AppImage, found ${#installers[@]}" >&2
+          mapfile -t installers_x64 < <(find xmcl-electron-app/build/output -maxdepth 1 -type f -name "MoonLauncher-v${RELEASE_VERSION}-x86_64.AppImage")
+          mapfile -t installers_i386 < <(find xmcl-electron-app/build/output -maxdepth 1 -type f -name "MoonLauncher-v${RELEASE_VERSION}-i386.AppImage")
+          if [[ "${#installers_x64[@]}" -ne 1 ]]; then
+            echo "Expected one Moon x86_64 AppImage, found ${#installers_x64[@]}" >&2
             exit 1
           fi
-          cp "${installers[0]}" "$destination/MoonLauncher-v${RELEASE_VERSION}-x64.AppImage"
+          if [[ "${#installers_i386[@]}" -ne 1 ]]; then
+            echo "Expected one Moon i386 AppImage, found ${#installers_i386[@]}" >&2
+            exit 1
+          fi
+          cp "${installers_x64[0]}" "$destination/MoonLauncher-v${RELEASE_VERSION}-x64.AppImage"
+          cp "${installers_i386[0]}" "$destination/MoonLauncher-v${RELEASE_VERSION}-i386.AppImage"
           cp xmcl-electron-app/build/Moon-Third-Party-Notices.txt "$destination/"
           cd "$destination"
-          sha256sum "MoonLauncher-v${RELEASE_VERSION}-x64.AppImage" > SHA256SUMS.txt
+          sha256sum "MoonLauncher-v${RELEASE_VERSION}-x64.AppImage" "MoonLauncher-v${RELEASE_VERSION}-i386.AppImage" > SHA256SUMS.txt
 
       - name: Validate Linux installer
-        run: node scripts/validate-release.mjs linux '${{ inputs.release_tag || github.ref_name }}' linux/dist
+        run: node scripts/validate-release.mjs linux '${{ github.event_name == 'schedule' && 'linux-v3.2.0' || inputs.release_tag || github.ref_name }}' linux/dist
 
       - name: Upload Linux installer artifact
         uses: actions/upload-artifact@v4
@@ -103,7 +111,7 @@ jobs:
       - name: Publish Linux release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.release_tag || github.ref_name }}
+          tag_name: ${{ github.event_name == 'schedule' && 'linux-v3.2.0' || inputs.release_tag || github.ref_name }}
           target_commitish: ${{ github.sha }}
           name: Moon Launcher Linux v${{ env.RELEASE_VERSION }} x64
           prerelease: ${{ env.IS_PRERELEASE == 'true' }}
