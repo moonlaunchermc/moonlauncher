@@ -61,15 +61,6 @@ jobs:
           RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
         run: node windows/rebrand-xmcl.mjs "$env:XMCL_SOURCE" "$env:RELEASE_TAG"
 
-      - name: Verify CurseForge API secret
-        shell: pwsh
-        env:
-          CURSEFORGE_API_KEY: ${{ secrets.api_key_curseforge || secrets.CURSEFORGE_API_KEY || secrets.CURSEFORGE_API_TOKEN }}
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:CURSEFORGE_API_KEY)) {
-            throw 'Set api_key_curseforge in repository Actions secrets before catalog release.'
-          }
-
       - name: Build Windows installer
         env:
           CURSEFORGE_API_KEY: ${{ secrets.api_key_curseforge || secrets.CURSEFORGE_API_KEY || secrets.CURSEFORGE_API_TOKEN }}
