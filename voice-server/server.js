@@ -7,10 +7,16 @@ const liveKitApiUrl = process.env.LIVEKIT_API_URL
 const liveKitWsUrl = process.env.LIVEKIT_WS_URL
 const apiKey = process.env.LIVEKIT_API_KEY
 const apiSecret = process.env.LIVEKIT_API_SECRET
+const allowedOrigin = process.env.VOICE_ALLOWED_ORIGIN?.trim() || ''
 const maxParticipants = 8
 const rateLimitWindowMs = 60_000
 const maxRequestsPerWindow = 30
 const requestCounts = new Map()
+const socialUsers = new Map()
+const socialTokens = new Map()
+const socialGroups = new Map()
+const socialFriendRequests = new Map()
+const socialMessages = []
 
 if (!liveKitApiUrl || !liveKitWsUrl || !apiKey || !apiSecret) {
   throw new Error('Set LIVEKIT_API_URL, LIVEKIT_WS_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET.')
@@ -19,14 +25,15 @@ if (!liveKitApiUrl || !liveKitWsUrl || !apiKey || !apiSecret) {
 const liveKit = new LiveKitAPI({ host: liveKitApiUrl, apiKey, secret: apiSecret })
 
 function sendJson(response, status, payload) {
-  response.writeHead(status, {
-    'access-control-allow-origin': '*',
+  const headers = {
+    ...(allowedOrigin ? { 'access-control-allow-origin': allowedOrigin } : {}),
     'access-control-allow-methods': 'GET, POST, OPTIONS',
     'access-control-allow-headers': 'content-type',
     'cache-control': 'no-store',
     'content-type': 'application/json; charset=utf-8',
     'x-content-type-options': 'nosniff',
-  })
+  }
+  response.writeHead(status, headers)
   if (status === 204) {
     response.end()
     return
@@ -111,9 +118,171 @@ async function joinRoom(code, displayName) {
   return { status: 200, payload: { code, token: await createParticipantToken(code, displayName), livekitUrl: liveKitWsUrl } }
 }
 
+function normalizeUserName(value) {
+  if (typeof value !== 'string') return ''
+  return value.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 32)
+}
+
+function getBearerToken(request) {
+  const authorization = request.headers.authorization || ''
+  return authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : ''
+}
+
+function getSocialUser(request) {
+  const userId = socialTokens.get(getBearerToken(request))
+  return userId ? socialUsers.get(userId) : undefined
+}
+
+function publicUser(user) {
+  return user ? { id: user.id, name: user.name } : undefined
+}
+
+function socialState(user) {
+  const friends = [...user.friendIds].map((id) => socialUsers.get(id)).filter(Boolean).map(publicUser)
+  const pending = [...socialFriendRequests.values()]
+    .filter((request) => request.toId === user.id && request.status === 'pending')
+    .map((request) => ({ id: request.id, from: publicUser(socialUsers.get(request.fromId)) }))
+  const groups = [...socialGroups.values()]
+    .filter((group) => group.memberIds.includes(user.id))
+    .map((group) => ({
+      id: group.id,
+      name: group.name,
+      members: group.memberIds.map((id) => socialUsers.get(id)).filter(Boolean).map(publicUser),
+    }))
+  return {
+    user: publicUser(user),
+    friends,
+    pending,
+    groups,
+    users: [...socialUsers.values()].filter((candidate) => candidate.id !== user.id).map(publicUser),
+  }
+}
+
+async function handleSocialRequest(request, response) {
+  const url = new URL(request.url, 'http://localhost')
+  if (!url.pathname.startsWith('/api/social')) return undefined
+  const address = request.socket.remoteAddress || 'unknown'
+  if (!checkRateLimit(address)) {
+    sendJson(response, 429, { error: 'Too many requests. Try again shortly.' })
+    return true
+  }
+
+  try {
+    if (request.method === 'POST' && url.pathname === '/api/social/register') {
+      const body = await readJson(request)
+      const name = normalizeUserName(body.name)
+      if (!name) throw Object.assign(new Error('Enter a display name.'), { status: 400 })
+      const existing = [...socialUsers.values()].find((user) => user.name.toLowerCase() === name.toLowerCase())
+      if (existing) throw Object.assign(new Error('That display name is already in use.'), { status: 409 })
+      const id = randomUUID()
+      const token = randomBytes(32).toString('hex')
+      socialUsers.set(id, { id, name, friendIds: new Set() })
+      socialTokens.set(token, id)
+      sendJson(response, 201, { token, ...publicUser(socialUsers.get(id)) })
+      return true
+    }
+
+    const user = getSocialUser(request)
+    if (!user) {
+      sendJson(response, 401, { error: 'Sign in again.' })
+      return true
+    }
+    if (request.method === 'GET' && url.pathname === '/api/social/state') {
+      sendJson(response, 200, socialState(user))
+      return true
+    }
+    if (request.method === 'POST' && url.pathname === '/api/social/friends/request') {
+      const { userId } = await readJson(request)
+      const target = socialUsers.get(userId)
+      if (!target || target.id === user.id) throw Object.assign(new Error('Choose another user.'), { status: 400 })
+      const duplicate = [...socialFriendRequests.values()].some((item) =>
+        item.status === 'pending' && ((item.fromId === user.id && item.toId === target.id) || (item.fromId === target.id && item.toId === user.id)))
+      if (duplicate || user.friendIds.has(target.id)) throw Object.assign(new Error('Friend request already exists.'), { status: 409 })
+      const id = randomUUID()
+      socialFriendRequests.set(id, { id, fromId: user.id, toId: target.id, status: 'pending' })
+      sendJson(response, 201, { id })
+      return true
+    }
+    if (request.method === 'POST' && url.pathname === '/api/social/friends/respond') {
+      const { requestId, accept } = await readJson(request)
+      const friendship = socialFriendRequests.get(requestId)
+      if (!friendship || friendship.toId !== user.id || friendship.status !== 'pending') throw Object.assign(new Error('Friend request not found.'), { status: 404 })
+      friendship.status = accept ? 'accepted' : 'declined'
+      if (accept) {
+        socialUsers.get(friendship.fromId).friendIds.add(user.id)
+        user.friendIds.add(friendship.fromId)
+      }
+      sendJson(response, 200, { ok: true })
+      return true
+    }
+    if (request.method === 'POST' && url.pathname === '/api/social/groups') {
+      const body = await readJson(request)
+      const name = normalizeUserName(body.name)
+      const memberIds = Array.isArray(body.memberIds)
+        ? [...new Set([user.id, ...body.memberIds.map(String)])].filter((id) => socialUsers.has(id))
+        : [user.id]
+      if (!name || memberIds.length < 2) throw Object.assign(new Error('Enter a group name and select a member.'), { status: 400 })
+      const id = randomUUID()
+      socialGroups.set(id, { id, name, memberIds })
+      sendJson(response, 201, { id, name })
+      return true
+    }
+    if (request.method === 'POST' && url.pathname === '/api/social/groups/invite') {
+      const { groupId, userId } = await readJson(request)
+      const group = socialGroups.get(groupId)
+      if (!group || !group.memberIds.includes(user.id)) throw Object.assign(new Error('Group not found.'), { status: 404 })
+      if (!socialUsers.has(userId)) throw Object.assign(new Error('User not found.'), { status: 404 })
+      if (!group.memberIds.includes(userId)) group.memberIds.push(userId)
+      sendJson(response, 200, { ok: true })
+      return true
+    }
+    if (request.method === 'POST' && url.pathname === '/api/social/messages') {
+      const body = await readJson(request)
+      const text = typeof body.text === 'string' ? body.text.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 2000) : ''
+      const conversationType = body.conversationType === 'group' ? 'group' : 'private'
+      const conversationId = typeof body.conversationId === 'string' ? body.conversationId : ''
+      if (!text || !conversationId) throw Object.assign(new Error('Enter a message and conversation.'), { status: 400 })
+      if (conversationType === 'group') {
+        const group = socialGroups.get(conversationId)
+        if (!group?.memberIds.includes(user.id)) throw Object.assign(new Error('Group not found.'), { status: 404 })
+      } else if (!user.friendIds.has(conversationId)) throw Object.assign(new Error('Private chat is available only between friends.'), { status: 403 })
+      const message = { id: randomUUID(), conversationType, conversationId, fromId: user.id, fromName: user.name, text, createdAt: Date.now() }
+      socialMessages.push(message)
+      while (socialMessages.length > 5000) socialMessages.shift()
+      sendJson(response, 201, message)
+      return true
+    }
+    if (request.method === 'GET' && url.pathname === '/api/social/messages') {
+      const conversationType = url.searchParams.get('type') === 'group' ? 'group' : 'private'
+      const conversationId = url.searchParams.get('conversation') || ''
+      const after = Number(url.searchParams.get('after') || 0)
+      if (conversationType === 'group') {
+        const group = socialGroups.get(conversationId)
+        if (!group?.memberIds.includes(user.id)) throw Object.assign(new Error('Group not found.'), { status: 404 })
+      } else if (!user.friendIds.has(conversationId)) throw Object.assign(new Error('Private chat is available only between friends.'), { status: 403 })
+      const messages = socialMessages.filter((message) =>
+        message.conversationType === conversationType && message.conversationId === conversationId && message.createdAt > after)
+      sendJson(response, 200, { messages })
+      return true
+    }
+    sendJson(response, 404, { error: 'Not found.' })
+    return true
+  } catch (error) {
+    const status = Number(error?.status) || 502
+    if (status < 500) sendJson(response, status, { error: error.message })
+    else {
+      console.error('Moon social request failed:', error instanceof Error ? error.message : 'Unknown error')
+      sendJson(response, 502, { error: 'Social service is temporarily unavailable.' })
+    }
+    return true
+  }
+}
+
 async function handleRequest(request, response) {
   if (request.method === 'OPTIONS') return sendJson(response, 204, {})
   if (request.method === 'GET' && request.url === '/health') return sendJson(response, 200, { status: 'ok' })
+  const socialResponse = await handleSocialRequest(request, response)
+  if (socialResponse) return socialResponse
   if (request.method !== 'POST' || !['/api/rooms', '/api/rooms/join'].includes(request.url)) {
     return sendJson(response, 404, { error: 'Not found.' })
   }
