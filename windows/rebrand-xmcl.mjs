@@ -116,19 +116,7 @@ await replaceOnce(builderConfig, `  linux: {
 const appPackagePath = path.join(electronApp, 'package.json');
 const uiPackagePath = path.join(renderer, 'package.json');
 const uiPackage = JSON.parse(await readFile(uiPackagePath, 'utf8'));
-uiPackage.dependencies['livekit-client'] = uiPackage.dependencies['livekit-client'] || '2.22.3';
 await writeFile(uiPackagePath, `${JSON.stringify(uiPackage, null, 4)}\n`);
-await copyFile(path.join(projectRoot, 'windows/MoonVoiceRoom.vue'), path.join(renderer, 'src/views/MoonVoiceRoom.vue'));
-await copyFile(path.join(projectRoot, 'windows/MoonSocial.vue'), path.join(renderer, 'src/views/MoonSocial.vue'));
-const rendererRouter = path.join(renderer, 'src/windows/main/router.ts');
-const routerSource = await readFile(rendererRouter, 'utf8');
-const brandedRouter = routerSource
-  .replace("import Store from '@/views/Store.vue'", "import Store from '@/views/Store.vue'\nimport MoonVoiceRoom from '@/views/MoonVoiceRoom.vue'\nimport MoonSocial from '@/views/MoonSocial.vue'")
-  .replace(
-    '      children: [\n        {\n          path: \'\',',
-    '      children: [\n        { path: \'moon-voice-room\', component: MoonVoiceRoom },\n        { path: \'moon-social\', component: MoonSocial },\n        {\n          path: \'\',',
-  );
-await writeFile(rendererRouter, brandedRouter);
 const appPackage = JSON.parse(await readFile(appPackagePath, 'utf8'));
 appPackage.version = appVersion;
 await writeFile(appPackagePath, `${JSON.stringify(appPackage, null, 4)}\n`);
@@ -292,27 +280,6 @@ await replaceOnce(
                 >
                   <v-icon start class="moon-action-button__icon">drive_folder_upload</v-icon>
                   {{ t('instance.installModpack') }}
-                </v-btn>                <v-btn
-                  data-testid="moon-action-voice-room"
-                  :to="{ path: '/moon-voice-room' }"
-                  block
-                  variant="tonal"
-                  color="primary"
-                  class="moon-action-button min-h-12 justify-start text-left"
-                >
-                  <v-icon start class="moon-action-button__icon">graphic_eq</v-icon>
-                  Voice Room
-                </v-btn>
-                <v-btn
-                  data-testid="moon-action-social"
-                  :to="{ path: '/moon-social' }"
-                  block
-                  variant="tonal"
-                  color="primary"
-                  class="moon-action-button min-h-12 justify-start text-left"
-                >
-                  <v-icon start class="moon-action-button__icon">forum</v-icon>
-                  Friends & Groups
                 </v-btn>              </div>
             </div>
           </section>
@@ -492,8 +459,6 @@ const marketShortcuts = computed(() => [
   { id: 'resourcepacks', label: t('modrinth.projectType.resourcepack'), icon: 'palette', to: { path: '/resourcepacks', query: { source: 'remote' } } },
   { id: 'shaders', label: t('modrinth.projectType.shader'), icon: 'flare', to: { path: '/shaderpacks', query: { source: 'remote' } } },
   { id: 'datapacks', label: t('modrinth.projectType.datapack'), icon: 'data_object', to: { path: '/save', query: { source: 'remote', modrinthCategories: 'datapack' } } },
-  { id: 'voice', label: 'Voice Room', icon: 'graphic_eq', to: '/moon-voice-room' },
-  { id: 'social', label: 'Friends & Groups', icon: 'forum', to: '/moon-social' },
 ])`,
 );
 await replaceOnce(

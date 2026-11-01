@@ -12,7 +12,7 @@ Android standalone beta APKs are built by the `Android Standalone Launcher Relea
 The legacy Capacitor web shell can still be built locally with:
 
 
-The Windows launcher includes private voice rooms for up to eight people. The token service is in [`voice-server/README.md`](voice-server/README.md), but this repository does not provide a hosted voice endpoint or LiveKit media server. Deploy the token service over HTTPS and connect it to a reachable LiveKit Cloud or self-hosted server before friends can join from other networks. The Android launcher and legacy web shell do not include voice rooms. Hosted chat, group invites, a premium-key store, and a public website still need their own backend; Microsoft login needs a registered OAuth application, and payments need a provider and server-side entitlement checks.
+Voice rooms, private chat, and group chat are not included in Moon Launcher. Microsoft login needs a registered OAuth application, and payments need a provider and server-side entitlement checks.
 
 Cloudflare Tunnel exposes a service running elsewhere; it does not host the website or guarantee faster rendering/downloads. Cloudflare Pages/Workers and object storage can host those parts, but actual speed depends on the origin, network, region, and assets. Minecraft FPS likewise depends on the device and game settings; the launcher cannot guarantee 500–1000 FPS.
 
