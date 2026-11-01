@@ -102,12 +102,16 @@ jobs:
           cd runtime
           chmod +x gradlew
           gradle :ZalithLauncher:assembleDebug -Darch=arm64
-          mv ZalithLauncher/build/outputs/apk/debug/*arm64*.apk /tmp/moon-arm64.apk
+          find ZalithLauncher/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -exec cp {} /tmp/moon-arm64.apk \;
           gradle :ZalithLauncher:assembleDebug -Darch=arm32
           cd ..
           mkdir -p release-artifacts
           cp /tmp/moon-arm64.apk "release-artifacts/Moon-Launcher-${{ github.event_name == 'schedule' && 'v3.2.0' || inputs.release_tag || github.ref_name }}-Android-arm64.apk"
-          cp runtime/ZalithLauncher/build/outputs/apk/debug/*arm32*.apk "release-artifacts/Moon-Launcher-${{ github.event_name == 'schedule' && 'v3.2.0' || inputs.release_tag || github.ref_name }}-Android-armv7.apk"
+          armv7_apk="$(find runtime/ZalithLauncher/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' ! -samefile /tmp/moon-arm64.apk | head -n 1)"
+          if [[ -z "$armv7_apk" ]]; then
+            armv7_apk="$(find runtime/ZalithLauncher/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          fi
+          cp "$armv7_apk" "release-artifacts/Moon-Launcher-${{ github.event_name == 'schedule' && 'v3.2.0' || inputs.release_tag || github.ref_name }}-Android-armv7.apk"
 
       - name: Validate and checksum Android artifact
         run: |
