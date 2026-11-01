@@ -819,7 +819,7 @@ await writeFile(electronController, brandedController);
 
 await writeFile(
   path.join(electronApp, 'main/pluginAutoUpdate.ts'),
-  "export {};\n",
+  "export const pluginAutoUpdate = async () => {};\n",
 );
 
 const upstreamLicense = await readFile(path.join(xmclRoot, 'LICENSE'), 'utf8');
