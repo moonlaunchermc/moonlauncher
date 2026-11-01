@@ -2,7 +2,7 @@
 
 Moon Launcher has separate native runtimes for Windows and Android. The Windows release is built from pinned XMCL source; the Android beta APK bundles a standalone Minecraft Java runtime built from pinned Amethyst source. The React/Vite app in this repository is a legacy web shell, not the runtime used by either native release.
 
-The Android beta APK uses pinned ZalithLauncher2 source as its base and does not require a separate Zalith or Pojav app to be installed. Moon applies its own identity and launcher controls to the bundled runtime. It includes Microsoft and offline account flows, touch controls, and `.mrpack` support. Ely.by login is not supported in the pinned Android runtime.
+The Android beta APK uses pinned Zalith Launcher 1 source as its base and does not require a separate Zalith or Pojav app to be installed. Moon applies its own identity and launcher controls to the bundled runtime. It includes Microsoft and offline account flows, touch controls, and `.mrpack` support. Ely.by login is not supported in the pinned Android runtime.
 
 The Windows and Linux XMCL runtimes use Modrinth and CurseForge for catalog downloads. Modrinth remains the fallback catalog if CurseForge is unavailable; `CURSEFORGE_API_KEY` or `CURSEFORGE_API_TOKEN` must be configured as a repository Actions secret. The web shell in this repository is not the Windows or Linux UI and does not launch Minecraft.
 

@@ -22,6 +22,9 @@ properties = properties
   .replace(/^launcher_short_name=.*$/m, 'launcher_short_name=Moon')
   .replace(/^launcher_version_code=.*$/m, `launcher_version_code=${versionCode}`)
   .replace(/^launcher_version_name=.*$/m, `launcher_version_name=${appVersion}`);
+if (!/^launcher_short_name=/m.test(properties)) properties += '\nlauncher_short_name=Moon';
+if (!/^launcher_version_code=/m.test(properties)) properties += `\nlauncher_version_code=${versionCode}`;
+if (!/^launcher_version_name=/m.test(properties)) properties += `\nlauncher_version_name=${appVersion}`;
 await writeFile(propertiesFile, properties);
 
 const androidRes = path.join(runtimeRoot, 'ZalithLauncher/src/main/res');
