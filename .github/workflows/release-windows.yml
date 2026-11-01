@@ -84,6 +84,7 @@ jobs:
         shell: pwsh
         run: |
           Set-Location $env:XMCL_SOURCE
+          pnpm install --no-frozen-lockfile
           pnpm run build:renderer
           $env:BUILD_TARGET = 'windows'
           pnpm run build
