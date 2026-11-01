@@ -7,7 +7,7 @@ on:
         description: Android standalone launcher release tag
         required: true
         type: string
-        default: v2.1.2-beta.1
+        default: v2.1.3-beta.1
   push:
     tags:
       - 'v*'
