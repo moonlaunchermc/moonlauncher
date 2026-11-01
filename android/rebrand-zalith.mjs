@@ -135,7 +135,7 @@ const splashLayout = path.join(androidRes, 'layout/activity_splash.xml');
 let splash = await readFile(splashLayout, 'utf8');
 splash = splash.replace(
   '<androidx.constraintlayout.widget.ConstraintLayout\n        android:id="@+id/title_layout"',
-  '<ImageView\n            android:id="@+id/moon_brand_logo"\n            android:layout_width="@dimen/_25sdp"\n            android:layout_height="@dimen/_25sdp"\n            android:layout_marginStart="@dimen/_8sdp"\n            android:contentDescription="@string/launcher_app_name"\n            android:src="@mipmap/ic_launcher"\n            app:layout_constraintBottom_toBottomOf="parent"\n            app:layout_constraintStart_toStartOf="parent"\n            app:layout_constraintTop_toTopOf="parent" />\n\n        <androidx.constraintlayout.widget.ConstraintLayout\n        android:id="@+id/title_layout"',
+  '<ImageView\n            android:id="@+id/moon_brand_logo"\n            android:layout_width="@dimen/_25sdp"\n            android:layout_height="@dimen/_25sdp"\n            android:layout_marginStart="@dimen/_8sdp"\n            android:contentDescription="Moon Launcher"\n            android:src="@mipmap/ic_launcher"\n            app:layout_constraintBottom_toBottomOf="parent"\n            app:layout_constraintStart_toStartOf="parent"\n            app:layout_constraintTop_toTopOf="parent" />\n\n        <androidx.constraintlayout.widget.ConstraintLayout\n        android:id="@+id/title_layout"',
 );
 splash = splash.replace(
   'android:layout_marginStart="@dimen/_12sdp"\n            android:background="?android:attr/selectableItemBackground"',
