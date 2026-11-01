@@ -120,6 +120,15 @@ uiPackage.dependencies['livekit-client'] = uiPackage.dependencies['livekit-clien
 await writeFile(uiPackagePath, `${JSON.stringify(uiPackage, null, 4)}\n`);
 await copyFile(path.join(projectRoot, 'windows/MoonVoiceRoom.vue'), path.join(renderer, 'src/views/MoonVoiceRoom.vue'));
 await copyFile(path.join(projectRoot, 'windows/MoonSocial.vue'), path.join(renderer, 'src/views/MoonSocial.vue'));
+const rendererRouter = path.join(renderer, 'src/windows/main/router.ts');
+const routerSource = await readFile(rendererRouter, 'utf8');
+const brandedRouter = routerSource
+  .replace("import Store from '@/views/Store.vue'", "import Store from '@/views/Store.vue'\nimport MoonVoiceRoom from '@/views/MoonVoiceRoom.vue'\nimport MoonSocial from '@/views/MoonSocial.vue'")
+  .replace(
+    '      children: [\n        {\n          path: \'\',',
+    '      children: [\n        { path: \'moon-voice-room\', component: MoonVoiceRoom },\n        { path: \'moon-social\', component: MoonSocial },\n        {\n          path: \'\',',
+  );
+await writeFile(rendererRouter, brandedRouter);
 const appPackage = JSON.parse(await readFile(appPackagePath, 'utf8'));
 appPackage.version = appVersion;
 await writeFile(appPackagePath, `${JSON.stringify(appPackage, null, 4)}\n`);
@@ -147,7 +156,7 @@ await replaceOnce(
 await replaceOnce(
   homeView,
   "import HomeCriticalError from './HomeCriticalError.vue'",
-  "import MoonVoiceRoom from './MoonVoiceRoom.vue'\nimport MoonSocial from './MoonSocial.vue'\nimport moonLogo from '@/assets/moon-logo.png'\nimport moonHero from '@/assets/moon-hero.webp'\nimport HomeCriticalError from './HomeCriticalError.vue'"
+  "import moonLogo from '@/assets/moon-logo.png'\nimport moonHero from '@/assets/moon-hero.webp'\nimport HomeCriticalError from './HomeCriticalError.vue'"
 );
 await replaceOnce(
   loginForm,
@@ -285,7 +294,7 @@ await replaceOnce(
                   {{ t('instance.installModpack') }}
                 </v-btn>                <v-btn
                   data-testid="moon-action-voice-room"
-                  href="#moon-voice-room"
+                  :to="{ path: '/moon-voice-room' }"
                   block
                   variant="tonal"
                   color="primary"
@@ -296,7 +305,7 @@ await replaceOnce(
                 </v-btn>
                 <v-btn
                   data-testid="moon-action-social"
-                  href="#moon-social"
+                  :to="{ path: '/moon-social' }"
                   block
                   variant="tonal"
                   color="primary"
@@ -306,12 +315,6 @@ await replaceOnce(
                   Friends & Groups
                 </v-btn>              </div>
             </div>
-          </section>
-          <section class="mx-3 mb-6" data-testid="moon-voice-room">
-            <MoonVoiceRoom />
-          </section>
-          <section id="moon-social" class="mx-3 mb-6" data-testid="moon-social">
-            <MoonSocial />
           </section>
           <HomeGrid />`,
 );
@@ -489,8 +492,8 @@ const marketShortcuts = computed(() => [
   { id: 'resourcepacks', label: t('modrinth.projectType.resourcepack'), icon: 'palette', to: { path: '/resourcepacks', query: { source: 'remote' } } },
   { id: 'shaders', label: t('modrinth.projectType.shader'), icon: 'flare', to: { path: '/shaderpacks', query: { source: 'remote' } } },
   { id: 'datapacks', label: t('modrinth.projectType.datapack'), icon: 'data_object', to: { path: '/save', query: { source: 'remote', modrinthCategories: 'datapack' } } },
-  { id: 'voice', label: 'Voice Room', icon: 'graphic_eq', to: { path: '/', hash: '#moon-voice-room' } },
-  { id: 'social', label: 'Friends & Groups', icon: 'forum', to: { path: '/', hash: '#moon-social' } },
+  { id: 'voice', label: 'Voice Room', icon: 'graphic_eq', to: '/moon-voice-room' },
+  { id: 'social', label: 'Friends & Groups', icon: 'forum', to: '/moon-social' },
 ])`,
 );
 await replaceOnce(
