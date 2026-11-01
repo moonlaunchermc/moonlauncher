@@ -17,7 +17,8 @@ const buildFile = path.join(runtimeRoot, 'ZalithLauncher/build.gradle.kts');
 let buildSource = await readFile(buildFile, 'utf8');
 buildSource = buildSource
   .replace('val zalithPackageName = "com.movtery.zalithlauncher"', 'val zalithPackageName = "id.noom.launcher"')
-  .replace('applicationIdSuffix = ".v2"', 'applicationIdSuffix = ""');
+  .replace('applicationIdSuffix = ".v2"', 'applicationIdSuffix = ""')
+  .replace(/version = release\(37\) \{\n\s*minorApiLevel = 2,?\n\s*\}/, 'version = release(36)');
 await writeFile(buildFile, buildSource);
 
 const propertiesFile = path.join(runtimeRoot, 'ZalithLauncher/gradle.properties');
