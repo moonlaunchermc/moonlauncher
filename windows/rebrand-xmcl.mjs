@@ -282,8 +282,17 @@ await replaceOnce(
                 >
                   <v-icon start class="moon-action-button__icon">drive_folder_upload</v-icon>
                   {{ t('instance.installModpack') }}
-                </v-btn>
-              </div>
+                </v-btn>                <v-btn
+                  data-testid="moon-action-voice-room"
+                  href="#moon-voice-room"
+                  block
+                  variant="tonal"
+                  color="primary"
+                  class="moon-action-button min-h-12 justify-start text-left"
+                >
+                  <v-icon start class="moon-action-button__icon">graphic_eq</v-icon>
+                  Voice Room
+                </v-btn>              </div>
             </div>
           </section>
           <section class="mx-3 mb-6" data-testid="moon-voice-room">
@@ -465,6 +474,7 @@ const marketShortcuts = computed(() => [
   { id: 'resourcepacks', label: t('modrinth.projectType.resourcepack'), icon: 'palette', to: { path: '/resourcepacks', query: { source: 'remote' } } },
   { id: 'shaders', label: t('modrinth.projectType.shader'), icon: 'flare', to: { path: '/shaderpacks', query: { source: 'remote' } } },
   { id: 'datapacks', label: t('modrinth.projectType.datapack'), icon: 'data_object', to: { path: '/save', query: { source: 'remote', modrinthCategories: 'datapack' } } },
+  { id: 'voice', label: 'Voice Room', icon: 'graphic_eq', to: { path: '/', hash: '#moon-voice-room' } },
 ])`,
 );
 await replaceOnce(
