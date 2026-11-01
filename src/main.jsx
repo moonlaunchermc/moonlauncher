@@ -52,6 +52,7 @@ function App() {
   const [query, setQuery] = useState('');
   const [loader, setLoader] = useState(modLoaders[0]);
   const [contentType, setContentType] = useState('mod');
+  const [catalogSource, setCatalogSource] = useState('Modrinth');
   const [mods, setMods] = useState([]);
   const [modsLoading, setModsLoading] = useState(false);
   const [downloadingId, setDownloadingId] = useState('');
@@ -116,6 +117,33 @@ function App() {
     const timer = setTimeout(async () => {
       setModsLoading(true);
       try {
+        if (catalogSource === 'CurseForge') {
+          const apiKey = getMoonSetting('curseForgeApiKey', '');
+          if (!apiKey.trim()) throw new Error('Tambahkan CurseForge API key di Pengaturan untuk mengaktifkan katalog.');
+          const params = new URLSearchParams({
+            gameId: '432',
+            classId: '6',
+            searchFilter: query,
+            pageSize: '20',
+          });
+          const response = await fetch(`https://api.curseforge.com/v1/mods/search?${params}`, {
+            headers: { Accept: 'application/json', 'x-api-key': apiKey.trim() },
+          });
+          if (!response.ok) throw new Error('Katalog CurseForge tidak dapat dimuat.');
+          const result = await response.json();
+          const normalized = (result.data ?? []).map((project) => ({
+            project_id: String(project.id),
+            title: project.name,
+            description: project.summary ?? '',
+            author: project.authors?.[0]?.name ?? 'CurseForge',
+            downloads: project.downloadCount ?? 0,
+            follows: 0,
+            icon_url: project.logo?.thumbnailUrl ?? '',
+            categories: project.categories?.map((category) => category.name) ?? [],
+            catalog_source: 'CurseForge',
+          }));
+          if (!cancelled) setMods(normalized);
+        } else {
         const facets = [[`project_type:${contentType}`]];
         if (contentType === 'mod' || contentType === 'modpack') facets.push([`categories:${loader.toLowerCase()}`]);
         const params = new URLSearchParams({
@@ -128,6 +156,7 @@ function App() {
         if (!response.ok) throw new Error('Tidak dapat memuat katalog Modrinth.');
         const result = await response.json();
         if (!cancelled) setMods(result.hits ?? []);
+        }
       } catch (error) {
         if (!cancelled) setStatus(error.message);
       } finally {
@@ -135,7 +164,7 @@ function App() {
       }
     }, 250);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [page, query, loader, contentType]);
+  }, [page, query, loader, contentType, catalogSource]);
 
   function openGame() {
     setStatus('Shell web lama tidak menjalankan Minecraft. Gunakan APK Moon Android standalone.');
@@ -144,7 +173,20 @@ function App() {
   async function addMod(mod) {
     setStatus(`Memasang ${mod.title}...`);
     try {
-      const result = await NoomAndroid.installMod({ projectId: mod.project_id, version, loader });
+      let downloadUrl = '';
+      if (mod.catalog_source === 'CurseForge') {
+        const apiKey = getMoonSetting('curseForgeApiKey', '');
+        const filesResponse = await fetch(`https://api.curseforge.com/v1/mods/${encodeURIComponent(mod.project_id)}/files?gameVersion=${encodeURIComponent(version)}`, {
+          headers: { Accept: 'application/json', 'x-api-key': apiKey.trim() },
+        });
+        if (!filesResponse.ok) throw new Error('Versi CurseForge untuk game tidak dapat dimuat.');
+        const filesResult = await filesResponse.json();
+        const file = (filesResult.data ?? []).find((item) => item.isAvailable && item.fileName?.toLowerCase().endsWith('.jar'))
+          ?? (filesResult.data ?? []).find((item) => item.isAvailable && item.fileName?.toLowerCase().endsWith('.jar'));
+        if (!file) throw new Error(`Tidak ada berkas .jar CurseForge untuk Minecraft ${version}.`);
+        downloadUrl = file.downloadUrl || `https://edge.forgecdn.net/files/${Math.floor(file.id / 1000)}/${file.id % 1000}/${encodeURIComponent(file.fileName)}`;
+      }
+      const result = await NoomAndroid.installMod({ projectId: mod.project_id, version, loader, downloadUrl });
       setStatus(result.message);
     } catch (error) {
       setStatus(error.message);
@@ -256,7 +298,7 @@ function App() {
         </header>
 
         {page === 'home' && <HomePage version={version} setVersion={setVersion} versions={minecraftVersions} versionsLoading={versionsLoading} onPlay={openGame} busy={busy} setPage={setPage} status={status} />}
-        {page === 'mods' && <ModsPage query={query} setQuery={setQuery} loader={loader} version={version} setVersion={setVersion} versions={minecraftVersions} versionsLoading={versionsLoading} contentType={contentType} setContentType={setContentType} mods={mods} loading={modsLoading} downloadingId={downloadingId} onDownload={downloadContent} status={status} />}
+        {page === 'mods' && <ModsPage query={query} setQuery={setQuery} loader={loader} version={version} setVersion={setVersion} versions={minecraftVersions} versionsLoading={versionsLoading} contentType={contentType} setContentType={setContentType} catalogSource={catalogSource} setCatalogSource={setCatalogSource} mods={mods} loading={modsLoading} downloadingId={downloadingId} onDownload={downloadContent} status={status} />}
         {page === 'instances' && <InstancesPage onOpenGame={openGame} />}
         {page === 'settings' && <SettingsPage onChooseModsFolder={chooseModsFolder} modsFolderConfigured={modsFolderConfigured} onOpenGame={openGame} />}
         {page === 'utilities' && <UtilitiesPage setPage={setPage} onOpenGame={openGame} />}
@@ -319,12 +361,13 @@ function HomePage({ version, setVersion, versions, versionsLoading, onPlay, busy
   );
 }
 
-function ModsPage({ query, setQuery, loader, version, setVersion, versions, versionsLoading, contentType, setContentType, mods, loading, downloadingId, onDownload, status }) {
+function ModsPage({ query, setQuery, loader, version, setVersion, versions, versionsLoading, contentType, setContentType, catalogSource, setCatalogSource, mods, loading, downloadingId, onDownload, status }) {
   const selectedType = contentTypes.find((item) => item.id === contentType);
   return (
     <div className="page mods-page">
       <div className="page-title-row"><div><div className="section-kicker">MODRINTH · MINECRAFT JAVA</div><h1>Jelajahi konten</h1><p>Mod, modpack, resource pack, shader, data pack, dan world.</p></div><div className="mod-count">{loading ? 'MEMUAT...' : `${mods.length} HASIL`}</div></div>
       <div className="mod-toolbar">
+        <label className="filter-select catalog-source"><select value={catalogSource} onChange={(event) => setCatalogSource(event.target.value)} aria-label="Pilih katalog mod"><option>Modrinth</option><option>CurseForge</option></select><ChevronDown size={14} /></label>
         <label className="search-field"><Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari mod, pembuat, atau koleksi..." /><kbd>⌘ K</kbd></label>
         <label className="filter-select type-filter"><Blocks size={16} /><select value={contentType} onChange={(event) => setContentType(event.target.value)} aria-label="Pilih jenis konten">{contentTypes.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select><ChevronDown size={14} /></label>
         {(contentType === 'mod' || contentType === 'modpack') && <label className="filter-select loader-filter"><Cpu size={16} /><select value={loader} onChange={(event) => setLoader(event.target.value)} aria-label="Pilih mod loader">{modLoaders.map((item) => <option key={item}>{item}</option>)}</select><ChevronDown size={14} /></label>}
@@ -345,7 +388,7 @@ function ModsPage({ query, setQuery, loader, version, setVersion, versions, vers
         ))}
         {!loading && mods.length === 0 && <div className="empty-results"><Sparkles size={21} /><strong>Belum ada hasil</strong><span>Coba kata pencarian yang berbeda.</span></div>}
       </div>
-      <div className="catalog-footer"><ShieldCheck size={15} /><span>{contentType === 'mod' ? `Mod ${loader} dipasang ke folder mods; loader tersebut harus sudah dipasang di Pojav.` : contentType === 'modpack' ? `Modpack ${loader} diunduh sebagai .mrpack dan perlu diimpor ke launcher.` : `${selectedType?.label} diunduh ke lokasi yang kamu pilih.`} Katalog disediakan oleh Modrinth.</span><a href="https://modrinth.com" target="_blank" rel="noreferrer">Modrinth <ArrowUpRight size={12} /></a></div>
+      <div className="catalog-footer"><ShieldCheck size={15} /><span>{contentType === 'mod' ? `Mod ${loader} dipasang ke folder mods; loader tersebut harus sudah dipasang di Pojav.` : contentType === 'modpack' ? `Modpack ${loader} diunduh sebagai .mrpack dan perlu diimpor ke launcher.` : `${selectedType?.label} diunduh ke lokasi yang kamu pilih.`} Katalog: {catalogSource}.</span><a href={catalogSource === 'CurseForge' ? 'https://www.curseforge.com/minecraft' : 'https://modrinth.com'} target="_blank" rel="noreferrer">{catalogSource} <ArrowUpRight size={12} /></a></div>
     </div>
   );
 }
@@ -452,6 +495,7 @@ function SettingsPage({ onChooseModsFolder, modsFolderConfigured, onOpenGame }) 
       <section className="settings-section"><div className="settings-heading"><h2>Tampilan dan suara</h2><span>02</span></div><div className="setting-row"><div><strong>Animasi antarmuka</strong><span>Animasi tombol, loading, dan transisi halaman.</span></div><input className="toggle" type="checkbox" checked={settings.animations !== false} onChange={(event) => changeSetting('animations', event.target.checked)} aria-label="Aktifkan animasi antarmuka" /></div><div className="setting-row"><div><strong>Suara klik</strong><span>Efek audio singkat untuk tindakan antarmuka.</span></div><input className="toggle" type="checkbox" checked={settings.clickSounds === true} onChange={(event) => changeSetting('clickSounds', event.target.checked)} aria-label="Aktifkan suara klik" /></div></section>
       <section className="settings-section"><div className="settings-heading"><h2>Jaringan dan privasi</h2><span>03</span></div><div className="setting-row"><div><strong>Mode hemat bandwidth</strong><span>Batasi unduhan paralel dan refresh katalog.</span></div><input className="toggle" type="checkbox" checked={settings.lowBandwidth === true} onChange={(event) => changeSetting('lowBandwidth', event.target.checked)} aria-label="Aktifkan mode hemat bandwidth" /></div><div className="setting-row"><div><strong>Kirim laporan crash</strong><span>Hanya dengan persetujuan; data sensitif harus dihapus sebelum dikirim.</span></div><input className="toggle" type="checkbox" checked={settings.crashReports === true} onChange={(event) => changeSetting('crashReports', event.target.checked)} aria-label="Izinkan laporan crash" /></div></section>
       <section className="settings-section"><div className="settings-heading"><h2>Data Moon</h2><span>04</span></div><div className="setting-row"><div><strong>Cadangkan atau pulihkan pengaturan</strong><span>Ekspor semua metadata database ke file JSON lokal.</span></div><div className="settings-actions"><button className="outline-action" onClick={exportSettings}><ArrowDownToLine size={15} /> Ekspor</button><label className="outline-action"><ArrowUpRight size={15} /> Impor<input className="visually-hidden" type="file" accept="application/json,.json" onChange={importSettings} /></label></div></div></section>
+      <section className="settings-section"><div className="settings-heading"><h2>Katalog mod</h2><span>05</span></div><div className="setting-row"><div><strong>CurseForge API key</strong><span>Gunakan API resmi CurseForge agar pencarian dan unduhan aman. Kunci disimpan hanya di perangkat.</span></div><input className="catalog-key-input" type="password" value={settings.curseForgeApiKey || ''} onChange={(event) => changeSetting('curseForgeApiKey', event.target.value)} aria-label="CurseForge API key" placeholder="Masukkan API key" /></div></section>
       <section className="settings-section"><div className="settings-heading"><h2>Akun dan game</h2><span>05</span></div><div className="setting-row"><div><strong>Dikelola di Moon</strong><span>Shell web lama tidak meminta atau meneruskan password akun.</span></div><button className="outline-action" onClick={onOpenGame}><ArrowUpRight size={15} /> Status launcher</button></div></section>
       {settingMessage && <div className="catalog-status" role="status">{settingMessage}</div>}
       <div className="settings-foot"><ShieldCheck size={15} /> Runtime game dan kontrol tersedia di APK Android standalone.</div>

@@ -37,18 +37,7 @@ public class NoomPlugin extends Plugin {
 
     @PluginMethod
     public void openPojavLauncher(PluginCall call) {
-        String[] packages = {"net.kdt.pojavlaunch", "com.movtery.zalithlauncher"};
-        for (String packageName : packages) {
-            Intent intent = getContext().getPackageManager().getLaunchIntentForPackage(packageName);
-            if (intent != null) {
-                getActivity().startActivity(intent);
-                JSObject result = new JSObject();
-                result.put("message", "PojavLauncher dibuka. Login dan mulai Minecraft dari aplikasi tersebut.");
-                call.resolve(result);
-                return;
-            }
-        }
-        call.reject("PojavLauncher belum terpasang. Pasang PojavLauncher atau Zalith Launcher terlebih dahulu.");
+        call.reject("Moon Launcher tidak membuka launcher eksternal. Gunakan APK Android standalone untuk menjalankan Minecraft.");
     }
 
     @PluginMethod
@@ -78,7 +67,7 @@ public class NoomPlugin extends Plugin {
             response.put("configured", true);
             call.resolve(response);
         } catch (Exception error) {
-            call.reject("Noom tidak mendapat izin untuk folder tersebut.", error);
+            call.reject("Moon Launcher tidak mendapat izin untuk folder tersebut.", error);
         }
     }
 
@@ -95,6 +84,7 @@ public class NoomPlugin extends Plugin {
         String projectId = call.getString("projectId", "");
         String gameVersion = call.getString("version", "");
         String loader = call.getString("loader", "Fabric");
+        String downloadUrl = call.getString("downloadUrl", "");
         String loaderId = loader.toLowerCase(java.util.Locale.ROOT);
         if (!projectId.matches("[A-Za-z0-9_-]{1,64}")) {
             call.reject("ID mod tidak valid.");
@@ -116,7 +106,9 @@ public class NoomPlugin extends Plugin {
 
         downloads.execute(() -> {
             try {
-                JSONObject file = findCompatibleFile(projectId, gameVersion, loaderId);
+                JSONObject file = downloadUrl.isEmpty()
+                    ? findCompatibleFile(projectId, gameVersion, loaderId)
+                    : new JSONObject().put("url", downloadUrl).put("filename", URI.create(downloadUrl).getPath().replaceFirst(".*/", ""));
                 String filename = sanitizeFilename(file.getString("filename"));
                 Uri created = downloadIntoFolder(file.getString("url"), filename, folder);
                 JSObject result = new JSObject();
@@ -205,7 +197,7 @@ public class NoomPlugin extends Plugin {
         HttpURLConnection connection = (HttpURLConnection) api.openConnection();
         connection.setConnectTimeout(15000);
         connection.setReadTimeout(20000);
-        connection.setRequestProperty("User-Agent", "NoomLauncher/1.0 (https://github.com/himamsuper-cpu/la)");
+        connection.setRequestProperty("User-Agent", "MoonLauncher/1.0 (https://github.com/himamsuper-cpu/la)");
         try {
             if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) throw new Exception("Tidak ada versi mod Fabric yang cocok dengan game ini.");
             JSONArray versionsList = new JSONArray(readText(connection.getInputStream()));
@@ -226,13 +218,13 @@ public class NoomPlugin extends Plugin {
 
     private Uri downloadIntoFolder(String address, String filename, Uri folder) throws Exception {
         URL url = URI.create(address).toURL();
-        if (!"https".equals(url.getProtocol()) || !(url.getHost().equals("modrinth.com") || url.getHost().endsWith(".modrinth.com"))) {
+        if (!isTrustedContentUrl(url)) {
             throw new Exception("Tautan unduhan mod tidak tepercaya.");
         }
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setConnectTimeout(20000);
         connection.setReadTimeout(60000);
-        connection.setRequestProperty("User-Agent", "NoomLauncher/1.0 (https://github.com/himamsuper-cpu/la)");
+        connection.setRequestProperty("User-Agent", "MoonLauncher/1.0 (https://github.com/himamsuper-cpu/la)");
         Uri output = null;
         try {
             if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) throw new Exception("Unduhan mod gagal.");
@@ -263,7 +255,7 @@ public class NoomPlugin extends Plugin {
             connection.setInstanceFollowRedirects(false);
             connection.setConnectTimeout(20000);
             connection.setReadTimeout(60000);
-            connection.setRequestProperty("User-Agent", "NoomLauncher/1.0 (https://github.com/himamsuper-cpu/la)");
+            connection.setRequestProperty("User-Agent", "MoonLauncher/1.0 (https://github.com/himamsuper-cpu/la)");
             int responseCode = connection.getResponseCode();
             if (responseCode >= 300 && responseCode < 400) {
                 String location = connection.getHeaderField("Location");
@@ -284,7 +276,17 @@ public class NoomPlugin extends Plugin {
     private boolean isTrustedModrinthUrl(URL url) {
         String host = url.getHost().toLowerCase();
         return "https".equalsIgnoreCase(url.getProtocol())
-            && (host.equals("modrinth.com") || host.endsWith(".modrinth.com"));
+            && (host.equals("modrinth.com") || host.endsWith(".modrinth.com")
+                || host.equals("media.forgecdn.net") || host.equals("edge.forgecdn.net")
+                || host.equals("api.curseforge.com"));
+    }
+
+    private boolean isTrustedContentUrl(URL url) {
+        String host = url.getHost().toLowerCase();
+        return "https".equalsIgnoreCase(url.getProtocol())
+            && (host.equals("modrinth.com") || host.endsWith(".modrinth.com")
+                || host.equals("cdn.modrinth.com") || host.equals("media.forgecdn.net")
+                || host.equals("edge.forgecdn.net"));
     }
 
     private String readText(InputStream input) throws Exception {

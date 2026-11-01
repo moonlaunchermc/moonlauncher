@@ -171,6 +171,8 @@ kbd { border: 1px solid #3a4035; padding: 3px 5px; color: #969b8f; font: 9px var
 .setting-row select { min-width: 130px; padding: 8px 10px; border: 1px solid #34392f; background: #171a15; color: var(--text); font-size: 10px; }
 .settings-actions { display: flex; gap: 8px; }
 .settings-actions .outline-action { min-height: 34px; cursor: pointer; }
+.catalog-source { min-width: 130px; }
+.catalog-key-input { width: min(280px, 48vw); padding: 9px 10px; border: 1px solid #34392f; background: #171a15; color: var(--text); font-size: 10px; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .toggle { appearance: none; position: relative; width: 35px; height: 19px; border: 1px solid #555b4c; border-radius: 12px; background: #262a22; cursor: pointer; transition: background .2s; }
 .toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 11px; height: 11px; border-radius: 50%; background: #9a9f92; transition: transform .2s; }
