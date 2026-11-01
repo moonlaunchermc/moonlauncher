@@ -66,6 +66,8 @@ jobs:
           validate-wrappers: false
 
       - name: Build Moon Android launcher
+        env:
+          CURSEFORGE_API_KEY: ${{ secrets.api_key_curseforge || secrets.API_KEY_CURSEFORGE || secrets.CURSEFORGE_API_KEY || secrets.CURSEFORGE_API_TOKEN }}
         run: |
           cd runtime
           chmod +x gradlew

@@ -7,7 +7,7 @@ on:
         description: Windows release tag
         required: true
         type: string
-        default: windows-v2.1.2-beta.1
+        default: windows-v2.1.3
   push:
     tags:
       - 'windows-v*'
@@ -64,7 +64,7 @@ jobs:
       - name: Verify CurseForge API connection
         shell: pwsh
         env:
-          CURSEFORGE_API_KEY: ${{ secrets.api_key_curseforge || secrets.CURSEFORGE_API_KEY || secrets.CURSEFORGE_API_TOKEN }}
+          CURSEFORGE_API_KEY: ${{ secrets.api_key_curseforge || secrets.API_KEY_CURSEFORGE || secrets.CURSEFORGE_API_KEY || secrets.CURSEFORGE_API_TOKEN }}
         run: |
           if ([string]::IsNullOrWhiteSpace($env:CURSEFORGE_API_KEY)) {
             Write-Warning 'CurseForge secret is not configured; Modrinth-only fallback will be used.'
@@ -80,7 +80,7 @@ jobs:
 
       - name: Build Windows installer
         env:
-          CURSEFORGE_API_KEY: ${{ secrets.api_key_curseforge || secrets.CURSEFORGE_API_KEY || secrets.CURSEFORGE_API_TOKEN }}
+          CURSEFORGE_API_KEY: ${{ secrets.api_key_curseforge || secrets.API_KEY_CURSEFORGE || secrets.CURSEFORGE_API_KEY || secrets.CURSEFORGE_API_TOKEN }}
         shell: pwsh
         run: |
           Set-Location $env:XMCL_SOURCE

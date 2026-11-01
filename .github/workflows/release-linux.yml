@@ -7,7 +7,7 @@ on:
         description: Linux release tag
         required: true
         type: string
-        default: linux-v2.1.2-beta.1
+        default: linux-v2.1.3-beta.1
   push:
     tags:
       - 'linux-v*'
@@ -65,7 +65,7 @@ jobs:
 
       - name: Verify CurseForge API key
         env:
-          CURSEFORGE_API_KEY: ${{ secrets.api_key_curseforge || secrets.CURSEFORGE_API_KEY || secrets.CURSEFORGE_API_TOKEN }}
+          CURSEFORGE_API_KEY: ${{ secrets.api_key_curseforge || secrets.API_KEY_CURSEFORGE || secrets.CURSEFORGE_API_KEY || secrets.CURSEFORGE_API_TOKEN }}
         run: |
           if [[ -z "$CURSEFORGE_API_KEY" ]]; then
             echo 'Set api_key_curseforge as a repository Actions secret before building.' >&2
@@ -74,7 +74,7 @@ jobs:
 
       - name: Build Moon Linux AppImage
         env:
-          CURSEFORGE_API_KEY: ${{ secrets.api_key_curseforge || secrets.CURSEFORGE_API_KEY || secrets.CURSEFORGE_API_TOKEN }}
+          CURSEFORGE_API_KEY: ${{ secrets.api_key_curseforge || secrets.API_KEY_CURSEFORGE || secrets.CURSEFORGE_API_KEY || secrets.CURSEFORGE_API_TOKEN }}
         run: |
           cd "$XMCL_SOURCE"
           pnpm run build:renderer
