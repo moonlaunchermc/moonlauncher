@@ -36,6 +36,25 @@ async function rebrandTextFiles(directory) {
   }
 }
 
+async function removeClientTitles(directory) {
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const file = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      await removeClientTitles(file);
+    } else if (/\.(html|json|ts|vue)$/.test(entry.name)) {
+      const source = await readFile(file, 'utf8');
+      const withoutClientTitles = source
+        .replaceAll('"Client"', '""')
+        .replaceAll('"Clients"', '""')
+        .replaceAll("'Client'", "''")
+        .replaceAll("'Clients'", "''")
+        .replaceAll('>Client<', '><')
+        .replaceAll('>Clients<', '><');
+      if (withoutClientTitles !== source) await writeFile(file, withoutClientTitles);
+    }
+  }
+}
+
 const electronApp = path.join(xmclRoot, 'xmcl-electron-app');
 const renderer = path.join(xmclRoot, 'xmcl-keystone-ui');
 const builderConfig = path.join(electronApp, 'build/electron-builder.config.ts');
@@ -115,20 +134,9 @@ await replaceOnce(builderConfig, `  linux: {
 
 const appPackagePath = path.join(electronApp, 'package.json');
 const uiPackagePath = path.join(renderer, 'package.json');
+await removeClientTitles(renderer);
 const uiPackage = JSON.parse(await readFile(uiPackagePath, 'utf8'));
 await writeFile(uiPackagePath, `${JSON.stringify(uiPackage, null, 4)}\n`);
-await copyFile(path.join(projectRoot, 'windows/MoonDeveloperPanel.vue'), path.join(renderer, 'src/views/MoonDeveloperPanel.vue'));
-const rendererRouter = path.join(renderer, 'src/windows/main/router.ts');
-const routerSource = await readFile(rendererRouter, 'utf8');
-await writeFile(
-  rendererRouter,
-  routerSource
-    .replace("import Store from '@/views/Store.vue'", "import Store from '@/views/Store.vue'\nimport MoonDeveloperPanel from '@/views/MoonDeveloperPanel.vue'")
-    .replace(
-      '      children: [\n        {\n          path: \'\',',
-      '      children: [\n        { path: \'moon-developer\', component: MoonDeveloperPanel },\n        {\n          path: \'\',',
-    ),
-);
 const appPackage = JSON.parse(await readFile(appPackagePath, 'utf8'));
 appPackage.version = appVersion;
 await writeFile(appPackagePath, `${JSON.stringify(appPackage, null, 4)}\n`);
@@ -471,7 +479,6 @@ const marketShortcuts = computed(() => [
   { id: 'resourcepacks', label: t('modrinth.projectType.resourcepack'), icon: 'palette', to: { path: '/resourcepacks', query: { source: 'remote' } } },
   { id: 'shaders', label: t('modrinth.projectType.shader'), icon: 'flare', to: { path: '/shaderpacks', query: { source: 'remote' } } },
   { id: 'datapacks', label: t('modrinth.projectType.datapack'), icon: 'data_object', to: { path: '/save', query: { source: 'remote', modrinthCategories: 'datapack' } } },
-  { id: 'developer', label: 'Developer Panel', icon: 'admin_panel_settings', to: '/moon-developer' },
 ])`,
 );
 await replaceOnce(
@@ -784,15 +791,41 @@ await generateMoonAssets(electronIcons);
 await copyFile(path.join(electronIcons, 'moon-logo.png'), path.join(rendererAssets, 'moon-logo.png'));
 await copyFile(path.join(renderer, 'src/assets/banners/1.20.webp'), path.join(rendererAssets, 'moon-hero.webp'));
 
+const electronController = path.join(electronApp, 'main/ElectronController.ts');
+const electronControllerSource = await readFile(electronController, 'utf8');
+const brandedController = electronControllerSource
+  .replaceAll('XMCL Launcher', 'Moon Launcher')
+  .replace(
+    `    browser.loadURL(url.toString())
+
+    this.logger.log(\`Load main window url \${url.toString()}\`)`,
+    `    browser.loadURL(url.toString())
+
+    // Some Windows GPU drivers never emit ready-to-show. A bounded fallback
+    // prevents Moon from remaining on a permanent loading screen.
+    setTimeout(() => {
+      if (!browser.isDestroyed() && !browser.isVisible()) {
+        browser.show()
+        browser.focus()
+      }
+    }, 12_000)
+
+    this.logger.log(\`Load main window url \${url.toString()}\`)`,
+  );
+if (brandedController === electronControllerSource) {
+  throw new Error('Failed to apply the Moon launcher window stability patch.');
+}
+await writeFile(electronController, brandedController);
+
+await writeFile(
+  path.join(electronApp, 'main/pluginAutoUpdate.ts'),
+  "export {};\n",
+);
+
 const upstreamLicense = await readFile(path.join(xmclRoot, 'LICENSE'), 'utf8');
 const notices = await readFile(path.join(projectRoot, 'windows/THIRD_PARTY_NOTICES.md'), 'utf8');
 const appBuild = path.join(electronApp, 'build');
 await mkdir(appBuild, { recursive: true });
 await writeFile(path.join(appBuild, 'Moon-Third-Party-Notices.txt'), `${notices}\n\n${upstreamLicense}`);
-await writeFile(
-  path.join(electronApp, 'main/pluginAutoUpdate.ts'),
-  "import { LauncherAppPlugin } from '@xmcl/runtime/app'\nimport { autoUpdater } from 'electron-updater'\nimport { kSettings } from '~/settings'\n\nexport const pluginAutoUpdate: LauncherAppPlugin = async (app) => {\n  if (process.env.XMCL_E2E) return\n  const state = await app.registry.get(kSettings)\n  state.subscribe('autoInstallOnAppQuitSet', (value) => { autoUpdater.autoInstallOnAppQuit = value }).subscribe('allowPrereleaseSet', (value) => { autoUpdater.allowPrerelease = value }).subscribe('autoDownloadSet', (value) => { autoUpdater.autoDownload = value }).subscribe('config', (config) => {\n    autoUpdater.autoInstallOnAppQuit = config.autoInstallOnAppQuit\n    autoUpdater.allowPrerelease = config.allowPrerelease\n    autoUpdater.autoDownload = config.autoDownload\n  })\n}\n",
-);
-
 const releasePlatform = releaseTag.startsWith('linux-v') ? 'Linux' : 'Windows';
 console.log(`Prepared Moon Launcher ${releasePlatform} ${appVersion}.`);
