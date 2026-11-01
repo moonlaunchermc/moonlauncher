@@ -19,7 +19,7 @@
       </label>
       <label>
         Invite code
-        <input v-model="inviteCode" type="text" maxlength="10" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="For joining a room" />
+        <input v-model="inviteCode" type="text" maxlength="10" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="10-character code" @input="inviteCode = inviteCode.toUpperCase().replace(/[^A-F0-9]/g, '')" />
       </label>
       <div class="moon-voice-room__actions">
         <button type="button" :disabled="busy || !canConnect" @click="connect('create')"><v-icon aria-hidden="true">add</v-icon> Create room</button>
@@ -51,7 +51,7 @@
 import { Room, RoomEvent, Track } from 'livekit-client'
 
 const storageKey = 'moon.voice.serviceUrl'
-const serviceUrl = ref(localStorage.getItem(storageKey) || '')
+const serviceUrl = ref(localStorage.getItem(storageKey) || 'https://vannilasmp.my.id')
 const displayName = ref(localStorage.getItem('moon.voice.displayName') || '')
 const inviteCode = ref('')
 const activeCode = ref('')
@@ -62,7 +62,7 @@ const busy = ref(false)
 const message = ref('')
 
 const canConnect = computed(() => serviceUrl.value.trim().length > 0 && displayName.value.trim().length > 0)
-const canJoin = computed(() => canConnect.value && /^[A-Z0-9]{10}$/.test(inviteCode.value.trim().toUpperCase()))
+const canJoin = computed(() => canConnect.value && /^[A-F0-9]{10}$/.test(inviteCode.value.trim().toUpperCase()))
 
 function getServiceBase() {
   const value = serviceUrl.value.trim().replace(/\/+$/, '')

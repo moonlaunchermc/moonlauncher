@@ -51,6 +51,9 @@
   background: linear-gradient(115deg, #182019 0%, #111511 59%, #161a14 100%);
 }
 
+.download-hero__video { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; object-fit: cover; opacity: .34; filter: saturate(.82) contrast(1.08); }
+.download-hero::after { position: absolute; inset: 0; z-index: 0; content: ''; background: linear-gradient(90deg, rgba(17,21,17,.96) 0%, rgba(17,21,17,.7) 48%, rgba(17,21,17,.88) 100%); }
+
 .download-hero::before {
   position: absolute;
   inset: 0;

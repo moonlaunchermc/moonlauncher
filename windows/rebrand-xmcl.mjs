@@ -47,7 +47,11 @@ await replaceOnce(builderConfig, `publish: [{
     provider: 'github',
     owner: 'voxelum',
     repo: 'x-minecraft-launcher',
-  }],`, 'publish: [],');
+  }],`, `publish: [{
+    provider: 'github',
+    owner: 'moonlaunchermc',
+    repo: 'moonlauncher',
+  }],`);
 await replaceOnce(builderConfig, "artifactName: 'xmcl-${version}-${platform}-${arch}.${ext}',", "artifactName: 'MoonLauncher-v${version}-${arch}.${ext}',");
 await replaceOnce(builderConfig, "icon: 'icons/dark.ico',", "icon: 'icons/moon.ico',");
 await replaceOnce(builderConfig, `  extraResources: [{
@@ -110,6 +114,11 @@ await replaceOnce(builderConfig, `  linux: {
   },`);
 
 const appPackagePath = path.join(electronApp, 'package.json');
+const uiPackagePath = path.join(renderer, 'package.json');
+const uiPackage = JSON.parse(await readFile(uiPackagePath, 'utf8'));
+uiPackage.dependencies['livekit-client'] = uiPackage.dependencies['livekit-client'] || '2.22.3';
+await writeFile(uiPackagePath, `${JSON.stringify(uiPackage, null, 4)}\n`);
+await copyFile(path.join(projectRoot, 'windows/MoonVoiceRoom.vue'), path.join(renderer, 'src/views/MoonVoiceRoom.vue'));
 const appPackage = JSON.parse(await readFile(appPackagePath, 'utf8'));
 appPackage.version = appVersion;
 await writeFile(appPackagePath, `${JSON.stringify(appPackage, null, 4)}\n`);
@@ -137,7 +146,7 @@ await replaceOnce(
 await replaceOnce(
   homeView,
   "import HomeCriticalError from './HomeCriticalError.vue'",
-  "import moonLogo from '@/assets/moon-logo.png'\nimport moonHero from '@/assets/moon-hero.webp'\nimport HomeCriticalError from './HomeCriticalError.vue'",
+  "import MoonVoiceRoom from './MoonVoiceRoom.vue\nimport moonLogo from '@/assets/moon-logo.png\nimport moonHero from '@/assets/moon-hero.webp\nimport HomeCriticalError from './HomeCriticalError.vue'"
 );
 await replaceOnce(
   loginForm,
@@ -276,6 +285,9 @@ await replaceOnce(
                 </v-btn>
               </div>
             </div>
+          </section>
+          <section class="mx-3 mb-6" data-testid="moon-voice-room">
+            <MoonVoiceRoom />
           </section>
           <HomeGrid />`,
 );
@@ -772,7 +784,7 @@ await mkdir(appBuild, { recursive: true });
 await writeFile(path.join(appBuild, 'Moon-Third-Party-Notices.txt'), `${notices}\n\n${upstreamLicense}`);
 await writeFile(
   path.join(electronApp, 'main/pluginAutoUpdate.ts'),
-  "import { LauncherAppPlugin } from '@xmcl/runtime/app'\n\nexport const pluginAutoUpdate: LauncherAppPlugin = async () => {}\n",
+  "import { LauncherAppPlugin } from '@xmcl/runtime/app'\nimport { autoUpdater } from 'electron-updater'\nimport { kSettings } from '~/settings'\n\nexport const pluginAutoUpdate: LauncherAppPlugin = async (app) => {\n  if (process.env.XMCL_E2E) return\n  const state = await app.registry.get(kSettings)\n  state.subscribe('autoInstallOnAppQuitSet', (value) => { autoUpdater.autoInstallOnAppQuit = value }).subscribe('allowPrereleaseSet', (value) => { autoUpdater.allowPrerelease = value }).subscribe('autoDownloadSet', (value) => { autoUpdater.autoDownload = value }).subscribe('config', (config) => {\n    autoUpdater.autoInstallOnAppQuit = config.autoInstallOnAppQuit\n    autoUpdater.allowPrerelease = config.allowPrerelease\n    autoUpdater.autoDownload = config.autoDownload\n  })\n}\n",
 );
 
 const releasePlatform = releaseTag.startsWith('linux-v') ? 'Linux' : 'Windows';

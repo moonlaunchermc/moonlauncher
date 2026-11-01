@@ -25,6 +25,7 @@ export default function DownloadPortal() {
 
       <main id="top">
         <section className="download-hero" aria-labelledby="hero-title">
+          <video className="download-hero__video" src="/moon-hero.mp4" autoPlay muted loop playsInline preload="metadata" aria-hidden="true" />
           <div className="hero-copy">
             <div className="release-label"><span /> MINECRAFT JAVA EDITION <i /> WINDOWS x64</div>
             <h1 id="hero-title">Moon<br /><em>Launcher</em></h1>
