@@ -5,7 +5,7 @@
         <h2>Friends & Groups</h2>
         <p>Chat, invite friends, and start private calls.</p>
       </div>
-      <button v-if="!account" type="button" @click="login">Sign in to Moon Social</button>
+      <button v-if="!account" type="button" @click="login">Continue with Moon name</button>
       <strong v-else>{{ account.name }}</strong>
     </header>
 
@@ -100,7 +100,8 @@ async function api(path: string, options: RequestInit = {}) {
 
 async function login() {
   try {
-    const name = window.prompt('Choose your Moon Social name:')
+    const savedName = localStorage.getItem('moon.voice.displayName') || ''
+    const name = savedName || window.prompt('Choose your Moon Social name:')
     if (!name) return
     account.value = await api('/api/social/register', { method: 'POST', body: JSON.stringify({ name }) })
     localStorage.setItem('moon.social.account', JSON.stringify(account.value))
@@ -191,6 +192,7 @@ async function startCall() {
 }
 
 onMounted(() => {
+  if (!account.value && localStorage.getItem('moon.voice.displayName')) void login()
   void refresh()
   pollTimer = window.setInterval(() => void refresh(), 2000)
 })

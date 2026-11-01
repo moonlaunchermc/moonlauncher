@@ -37,6 +37,19 @@
       <ul class="moon-voice-room__participants" aria-label="Participants">
         <li v-for="participant in participants" :key="participant">{{ participant }}</li>
       </ul>
+      <div class="moon-voice-room__chat">
+        <div class="moon-voice-room__chat-title">Room chat</div>
+        <div class="moon-voice-room__messages" aria-live="polite">
+          <div v-for="item in roomMessages" :key="item.id">
+            <strong>{{ item.fromName }}</strong>
+            <span>{{ item.text }}</span>
+          </div>
+        </div>
+        <form @submit.prevent="sendRoomMessage">
+          <input v-model="roomMessage" maxlength="2000" placeholder="Write a message..." />
+          <button type="submit" :disabled="!roomMessage.trim()">Send</button>
+        </form>
+      </div>
       <div class="moon-voice-room__actions">
         <button type="button" @click="toggleMicrophone"><v-icon aria-hidden="true">{{ microphoneMuted ? 'mic' : 'mic_off' }}</v-icon> {{ microphoneMuted ? 'Unmute microphone' : 'Mute microphone' }}</button>
         <button type="button" class="moon-voice-room__secondary" @click="leaveRoom"><v-icon aria-hidden="true">logout</v-icon> Leave room</button>
@@ -60,6 +73,9 @@ const participants = ref<string[]>([])
 const microphoneMuted = ref(false)
 const busy = ref(false)
 const message = ref('')
+const roomMessages = ref([])
+const roomMessage = ref('')
+let roomChatTimer
 
 const canConnect = computed(() => serviceUrl.value.trim().length > 0 && displayName.value.trim().length > 0)
 const canJoin = computed(() => canConnect.value && /^[A-F0-9]{10}$/.test(inviteCode.value.trim().toUpperCase()))
@@ -158,6 +174,43 @@ async function leaveRoom() {
   await currentRoom.value?.disconnect()
 }
 
+async function sendRoomMessage() {
+  if (!roomMessage.value.trim() || !activeCode.value) return
+  try {
+    const base = getServiceBase()
+    const response = await fetch(`${base}/api/social/rooms/messages`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ room: activeCode.value, name: displayName.value.trim(), text: roomMessage.value }),
+    })
+    const result = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(result.error || 'Could not send room message.')
+    roomMessages.value.push(result)
+    roomMessage.value = ''
+  } catch (error) {
+    message.value = error instanceof Error ? error.message : 'Could not send room message.'
+  }
+}
+
+async function refreshRoomMessages() {
+  if (!activeCode.value) return
+  try {
+    const base = getServiceBase()
+    const after = roomMessages.value.at(-1)?.createdAt || 0
+    const response = await fetch(`${base}/api/social/rooms/messages?room=${encodeURIComponent(activeCode.value)}&after=${after}`)
+    const result = await response.json().catch(() => ({}))
+    if (response.ok && result.messages?.length) roomMessages.value.push(...result.messages)
+  } catch {
+    // Preserve the active voice room when chat polling is temporarily unavailable.
+  }
+}
+
+watch(activeCode, (code) => {
+  window.clearInterval(roomChatTimer)
+  roomMessages.value = []
+  if (code) roomChatTimer = window.setInterval(refreshRoomMessages, 1500)
+})
+
 async function copyInviteCode() {
   try {
     await navigator.clipboard.writeText(activeCode.value)
@@ -168,6 +221,7 @@ async function copyInviteCode() {
 }
 
 onBeforeUnmount(() => {
+  window.clearInterval(roomChatTimer)
   void currentRoom.value?.disconnect()
   detachAudio()
 })
@@ -247,6 +301,39 @@ onBeforeUnmount(() => {
 .moon-voice-room__actions {
   grid-column: 1 / -1;
   justify-content: flex-start;
+}
+
+.moon-voice-room__chat {
+  display: grid;
+  gap: 8px;
+  min-height: 220px;
+  padding: 12px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.14);
+  border-radius: 6px;
+}
+
+.moon-voice-room__chat-title {
+  font-weight: 700;
+}
+
+.moon-voice-room__messages {
+  height: 160px;
+  overflow-y: auto;
+}
+
+.moon-voice-room__messages div {
+  display: grid;
+  gap: 2px;
+  padding: 5px 0;
+}
+
+.moon-voice-room__chat form {
+  display: flex;
+  gap: 8px;
+}
+
+.moon-voice-room__chat form input {
+  flex: 1;
 }
 
 .moon-voice-room button {

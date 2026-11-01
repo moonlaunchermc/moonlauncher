@@ -17,6 +17,7 @@ const socialTokens = new Map()
 const socialGroups = new Map()
 const socialFriendRequests = new Map()
 const socialMessages = []
+const voiceRoomMessages = []
 
 if (!liveKitApiUrl || !liveKitWsUrl || !apiKey || !apiSecret) {
   throw new Error('Set LIVEKIT_API_URL, LIVEKIT_WS_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET.')
@@ -168,12 +169,41 @@ async function handleSocialRequest(request, response) {
   }
 
   try {
+    if (url.pathname === '/api/social/rooms/messages') {
+      const conversationId = typeof url.searchParams.get('room') === 'string' ? url.searchParams.get('room').trim().toUpperCase() : ''
+      if (request.method === 'POST') {
+        const body = await readJson(request)
+        const conversationId = typeof body.room === 'string' ? body.room.trim().toUpperCase() : ''
+        const name = normalizeUserName(body.name)
+        const text = typeof body.text === 'string' ? body.text.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 2000) : ''
+        if (!/^[A-F0-9]{10}$/.test(conversationId) || !name || !text) throw Object.assign(new Error('Invalid room message.'), { status: 400 })
+        const rooms = await liveKit.room.listRooms([conversationId])
+        if (rooms.length === 0) throw Object.assign(new Error('Voice room not found.'), { status: 404 })
+        const message = { id: randomUUID(), room: conversationId, fromName: name, text, createdAt: Date.now() }
+        voiceRoomMessages.push(message)
+        while (voiceRoomMessages.length > 5000) voiceRoomMessages.shift()
+        sendJson(response, 201, message)
+      } else if (request.method === 'GET' && /^[A-F0-9]{10}$/.test(conversationId)) {
+        const rooms = await liveKit.room.listRooms([conversationId])
+        if (rooms.length === 0) throw Object.assign(new Error('Voice room not found.'), { status: 404 })
+        const after = Number(url.searchParams.get('after') || 0)
+        sendJson(response, 200, { messages: voiceRoomMessages.filter((message) => message.room === conversationId && message.createdAt > after) })
+      } else {
+        sendJson(response, 404, { error: 'Not found.' })
+      }
+      return true
+    }
     if (request.method === 'POST' && url.pathname === '/api/social/register') {
       const body = await readJson(request)
       const name = normalizeUserName(body.name)
       if (!name) throw Object.assign(new Error('Enter a display name.'), { status: 400 })
       const existing = [...socialUsers.values()].find((user) => user.name.toLowerCase() === name.toLowerCase())
-      if (existing) throw Object.assign(new Error('That display name is already in use.'), { status: 409 })
+      if (existing) {
+        const token = randomBytes(32).toString('hex')
+        socialTokens.set(token, existing.id)
+        sendJson(response, 200, { token, ...publicUser(existing) })
+        return true
+      }
       const id = randomUUID()
       const token = randomBytes(32).toString('hex')
       socialUsers.set(id, { id, name, friendIds: new Set() })
