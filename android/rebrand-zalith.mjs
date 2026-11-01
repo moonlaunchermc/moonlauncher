@@ -6,6 +6,11 @@ const runtimeRoot = path.resolve(process.argv[2] || '');
 const releaseTag = process.argv[3] || 'v2.1.3-beta.1';
 if (!runtimeRoot) throw new Error('Pass the checked-out Zalith runtime directory.');
 
+const curseForgeApiKey = process.env.CURSEFORGE_API_KEY?.trim();
+if (!curseForgeApiKey) {
+  throw new Error('CURSEFORGE_API_KEY is required to build Moon Android with a working CurseForge catalog.');
+}
+
 const appVersion = releaseTag.replace(/^v/, '');
 const versionMatch = appVersion.match(/^(\d+)\.(\d+)\.(\d+)(?:-(?:alpha|beta|rc)\.(\d+))?$/);
 if (!versionMatch) throw new Error(`Invalid Android release tag: ${releaseTag}`);
