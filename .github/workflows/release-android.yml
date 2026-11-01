@@ -54,6 +54,11 @@ jobs:
           RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
         run: node android/rebrand-zalith.mjs runtime "$RELEASE_TAG"
 
+      - name: Install Android Rust build tools
+        run: |
+          rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android
+          cargo install cargo-ndk --locked
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
