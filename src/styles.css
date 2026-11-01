@@ -177,6 +177,17 @@ kbd { border: 1px solid #3a4035; padding: 3px 5px; color: #969b8f; font: 9px var
 .toggle:checked { border-color: #a8c84c; background: #708e26; }
 .toggle:checked::after { transform: translateX(16px); background: #f4ffd2; }
 .settings-foot { display: flex; align-items: center; gap: 7px; margin-top: 23px; color: #7e8478; font-size: 10px; }
+.stable-badge { padding: 8px 10px; border: 1px solid #5f703b; color: var(--lime); font: 9px var(--mono); }
+.quick-actions { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.quick-actions button { min-height: 66px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid #34392f; background: #171a15; color: #d9dccd; cursor: pointer; font-size: 10px; }
+.quick-actions button:hover { border-color: var(--lime); color: var(--lime); }
+.feature-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 22px; }
+.feature-card { min-height: 92px; display: grid; align-content: center; gap: 9px; padding: 13px; border: 1px solid var(--line); background: rgba(23, 26, 21, .72); color: #dfe2d4; }
+.feature-card > span { color: #6f7469; font: 8px var(--mono); }
+.feature-card svg { color: var(--lime); }
+.feature-card strong { font-size: 10px; }
+.utility-maintenance { display: flex; align-items: center; gap: 9px; margin-top: 18px; }
+.utility-maintenance > span { display: inline-flex; align-items: center; gap: 7px; margin-left: auto; color: #838879; font-size: 9px; }
 
 .modal-backdrop { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; padding: 20px; background: #080a08cc; backdrop-filter: blur(8px); animation: fade-in .16s both; }
 .account-modal { width: min(450px, 100%); padding: 27px 30px 21px; border: 1px solid #373d32; background: #171a15; box-shadow: 0 25px 90px #0008; }

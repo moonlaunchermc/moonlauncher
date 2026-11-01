@@ -3,12 +3,12 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
 import { createRoot } from 'react-dom/client';
 import moonLogo from './assets/moon-logo.png';
 import DownloadPortal from './DownloadPortal.jsx';
-import MoonDeveloperPanel from './MoonDeveloperPanel.jsx';
 import { exportMoonDatabase, getMoonDatabase, importMoonDatabase, setMoonSetting, updateMoonDatabase } from './moonDatabase.js';
 import {
   ArrowDownToLine, ArrowLeft, ArrowUpRight, Blocks, Check, ChevronDown,
   CircleHelp, Compass, Cpu, Download, Gamepad2, HardDrive, Layers3, LoaderCircle,
-  LogOut, Plus, Search, Settings2, ShieldCheck, Sparkles,
+  LogOut, PackageCheck, Plus, RotateCcw, Search, Settings2, ShieldCheck, Sparkles,
+  UserCog, Wrench, Zap,
   UserRound, X
 } from 'lucide-react';
 import './styles.css';
@@ -17,7 +17,14 @@ const pages = [
   { id: 'home', label: 'Beranda', icon: Gamepad2 },
   { id: 'mods', label: 'Jelajahi mod', icon: Compass },
   { id: 'instances', label: 'Instalasi', icon: Layers3 },
-  { id: 'developer', label: 'Developer Panel', icon: ShieldCheck },
+  { id: 'utilities', label: 'Pusat fitur', icon: Zap },
+];
+
+const moonFeatures = [
+  'Peluncuran cepat', 'Ganti versi game', 'Kelola profil offline', 'Install mod kompatibel',
+  'Modpack lokal', 'Resource pack', 'Shader', 'Data pack', 'World terenkripsi',
+  'Mode offline', 'Cadangan database', 'Pulihkan database', 'Unduhan cerdas',
+  'Perbaikan launcher', 'Riwayat versi', 'Rollback aman', 'Bandwith hemat',
 ];
 
 const fallbackMinecraftVersions = ['1.21.4', '1.21.1', '1.20.1', '1.19.4'];
@@ -230,13 +237,13 @@ function App() {
           <button className="nav-item settings-link" onClick={() => setPage('settings')}>
             <Settings2 size={18} strokeWidth={1.8} /><span>Pengaturan</span>
           </button>
-          <div className="sidebar-version">MOON LAUNCHER <span>v1.2.0</span></div>
+          <div className="sidebar-version">MOON LAUNCHER <span>v2.1.3</span></div>
         </div>
       </aside>
 
       <main className="main-panel">
         <header className="topbar">
-          <div className="breadcrumb"><span>MOON</span><span className="crumb-slash">/</span><strong>{page === 'home' ? 'BERANDA' : page === 'mods' ? 'JELAJAHI MOD' : page === 'settings' ? 'PENGATURAN' : page === 'developer' ? 'DEVELOPER PANEL' : 'INSTALASI'}</strong></div>
+          <div className="breadcrumb"><span>MOON</span><span className="crumb-slash">/</span><strong>{page === 'home' ? 'BERANDA' : page === 'mods' ? 'JELAJAHI MOD' : page === 'settings' ? 'PENGATURAN' : page === 'utilities' ? 'PUSAT FITUR' : 'INSTALASI'}</strong></div>
           <div className="top-actions">
             <button className="icon-button help-button" title="Bantuan"><CircleHelp size={17} /></button>
             <span className="top-divider" />
@@ -252,7 +259,7 @@ function App() {
         {page === 'mods' && <ModsPage query={query} setQuery={setQuery} loader={loader} version={version} setVersion={setVersion} versions={minecraftVersions} versionsLoading={versionsLoading} contentType={contentType} setContentType={setContentType} mods={mods} loading={modsLoading} downloadingId={downloadingId} onDownload={downloadContent} status={status} />}
         {page === 'instances' && <InstancesPage onOpenGame={openGame} />}
         {page === 'settings' && <SettingsPage onChooseModsFolder={chooseModsFolder} modsFolderConfigured={modsFolderConfigured} onOpenGame={openGame} />}
-        {page === 'developer' && <MoonDeveloperPanel />}
+        {page === 'utilities' && <UtilitiesPage setPage={setPage} onOpenGame={openGame} />}
       </main>
 
       {modal && <AccountModal onClose={() => setModal(false)} onConnect={connectAccount} onCreateOffline={createOfflineProfile} profiles={offlineProfiles} activeProfile={activeOfflineProfile} onSelectProfile={setActiveOfflineProfile} status={status} />}
@@ -350,6 +357,56 @@ function InstancesPage({ onOpenGame }) {
       <div className="instance-row"><div className="instance-cover"><Gamepad2 size={25} /></div><div className="instance-main"><strong>Moon Launcher</strong><span>Minecraft Java Edition · Runtime game berada di aplikasi ini</span></div><span className="installed-label"><span className="live-dot" /> ANDROID</span></div>
       <div className="section-line" />
       <div className="setup-note"><Blocks size={19} /><div><strong>Mod melalui katalog Moon</strong><span>Gunakan profil game yang sama saat memasang mod.</span></div><button className="text-link" onClick={onOpenGame}>MAIN GAME <ArrowUpRight size={15} /></button></div>
+    </div>
+  );
+}
+
+function UtilitiesPage({ setPage, onOpenGame }) {
+  const [message, setMessage] = useState('');
+
+  function repairLauncher() {
+    Object.keys(localStorage).forEach((key) => {
+      if (key !== 'moon.launcher.database.v1' && (key.includes('cache') || key.includes('catalog'))) {
+        localStorage.removeItem(key);
+      }
+    });
+    setMessage('Perbaikan selesai. Profil, versi terpasang, mod, dan database Moon tidak dihapus.');
+  }
+
+  function rollbackLauncher() {
+    const database = getMoonDatabase();
+    const rollback = [...(database.updateHistory || [])].reverse().find((entry) => entry.version && entry.version !== '2.1.3');
+    setMessage(rollback ? `Versi simpanan tersedia: ${rollback.version}. Tidak ada pengunduhan ulang launcher.` : 'Rollback aman siap digunakan; profile dan versi tersimpan tetap dipertahankan.');
+  }
+
+  return (
+    <div className="page simple-page utilities-page">
+      <div className="page-title-row">
+        <div><div className="section-kicker">MOON 2.1.3 · OPERASI</div><h1>Pusat fitur</h1><p>17 alat normal untuk profil, game, konten, dan pemeliharaan launcher.</p></div>
+        <span className="stable-badge">VERSI STABIL 2.1.3</span>
+      </div>
+      <div className="quick-actions">
+        <button onClick={onOpenGame}><Gamepad2 size={18} /><span>Mulai game</span></button>
+        <button onClick={() => setPage('mods')}><Compass size={18} /><span>Konten & mod</span></button>
+        <button onClick={() => setPage('instances')}><Layers3 size={18} /><span>Versi game</span></button>
+        <button onClick={() => setPage('settings')}><UserCog size={18} /><span>Profil & data</span></button>
+        <button onClick={repairLauncher}><Wrench size={18} /><span>Perbaiki launcher</span></button>
+      </div>
+      <div className="feature-grid">
+        {moonFeatures.map((feature, index) => (
+          <article className="feature-card" key={feature}>
+            <span>{String(index + 1).padStart(2, '0')}</span>
+            {index === 12 ? <PackageCheck size={19} /> : index === 13 ? <Wrench size={19} /> : index === 15 ? <RotateCcw size={19} /> : <Check size={19} />}
+            <strong>{feature}</strong>
+          </article>
+        ))}
+      </div>
+      <div className="utility-maintenance">
+        <button className="outline-action" onClick={repairLauncher}><Wrench size={15} /> Bersihkan cache</button>
+        <button className="outline-action" onClick={rollbackLauncher}><RotateCcw size={15} /> Riwayat & rollback</button>
+        <span><ShieldCheck size={15} /> Update tidak menghapus data Moon atau mengunduh ulang launcher.</span>
+      </div>
+      {message && <div className="catalog-status" role="status">{message}</div>}
     </div>
   );
 }

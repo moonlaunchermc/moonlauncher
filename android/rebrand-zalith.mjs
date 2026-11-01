@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { generateMoonAssets } from '../scripts/generate-moon-assets.mjs';
 
@@ -42,6 +42,8 @@ const densityDirs = {
 for (const [density, assetName] of Object.entries(densityDirs)) {
   const mipmapDir = path.join(androidRes, `mipmap-${density}`);
   await mkdir(mipmapDir, { recursive: true });
+  await rm(path.join(mipmapDir, 'ic_launcher.png'), { force: true });
+  await rm(path.join(mipmapDir, 'ic_launcher_round.png'), { force: true });
   await copyFile(path.join(moonAssets, assetName), path.join(mipmapDir, 'ic_launcher.webp'));
   await copyFile(path.join(moonAssets, assetName), path.join(mipmapDir, 'ic_launcher_round.webp'));
 }
