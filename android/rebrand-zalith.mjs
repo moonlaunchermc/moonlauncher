@@ -13,12 +13,6 @@ const versionCode = Number(versionMatch[1]) * 1_000_000
   + Number(versionMatch[3]) * 100
   + (versionMatch[4] ? Number(versionMatch[4]) : 99);
 
-const buildFile = path.join(runtimeRoot, 'ZalithLauncher/build.gradle.kts');
-let buildSource = await readFile(buildFile, 'utf8');
-buildSource = buildSource
-  .replace(/version = release\(37\) \{\n\s*minorApiLevel = 2,?\n\s*\}/, 'version = release(36)');
-await writeFile(buildFile, buildSource);
-
 const propertiesFile = path.join(runtimeRoot, 'ZalithLauncher/gradle.properties');
 let properties = await readFile(propertiesFile, 'utf8');
 properties = properties
